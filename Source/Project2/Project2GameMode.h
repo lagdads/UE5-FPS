@@ -7,7 +7,7 @@
 #include "Project2GameMode.generated.h"
 
 /**
- *  Simple GameMode for a first person game
+ *  简单的第一人称游戏模式
  */
 UCLASS(abstract)
 class AProject2GameMode : public AGameModeBase
@@ -17,6 +17,3 @@ class AProject2GameMode : public AGameModeBase
 public:
 	AProject2GameMode();
 };
-
-
-

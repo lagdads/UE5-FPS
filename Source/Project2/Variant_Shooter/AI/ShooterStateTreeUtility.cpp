@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
 #include "Variant_Shooter/AI/ShooterStateTreeUtility.h"
 #include "StateTreeExecutionContext.h"
 #include "ShooterNPC.h"
@@ -10,67 +9,67 @@
 #include "ShooterAIController.h"
 #include "StateTreeAsyncExecutionContext.h"
 
-bool FStateTreeLineOfSightToTargetCondition::TestCondition(FStateTreeExecutionContext& Context) const
+bool FStateTreeLineOfSightToTargetCondition::TestCondition(FStateTreeExecutionContext &Context) const
 {
-	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+	const FInstanceDataType &InstanceData = Context.GetInstanceData(*this);
 
-	// ensure the target is valid
+	// 保证目标仍然有效
 	if (!IsValid(InstanceData.Target))
 	{
 		return !InstanceData.bMustHaveLineOfSight;
 	}
-	
-	// check if the character is facing towards the target
+
+	// 检查角色是否朝向目标
 	const FVector TargetDir = (InstanceData.Target->GetActorLocation() - InstanceData.Character->GetActorLocation()).GetSafeNormal();
 
 	const float FacingDot = FVector::DotProduct(TargetDir, InstanceData.Character->GetActorForwardVector());
 	const float MaxDot = FMath::Cos(FMath::DegreesToRadians(InstanceData.LineOfSightConeAngle));
 
-	// is the facing outside of our cone half angle?
+	// 面向方向是否落在视线锥之外？
 	if (FacingDot <= MaxDot)
 	{
 		return !InstanceData.bMustHaveLineOfSight;
 	}
 
-	// get the target's bounding box
+	// 获取目标边界盒
 	FVector CenterOfMass, Extent;
 	InstanceData.Target->GetActorBounds(true, CenterOfMass, Extent, false);
 
-	// divide the vertical extent by the number of line of sight checks we'll do
+	// 将垂直高度平均分配到每次视线检测
 	const float ExtentZOffset = Extent.Z * 2.0f / InstanceData.NumberOfVerticalLineOfSightChecks;
 
-	// get the character's camera location as the source for the line checks
+	// 以角色相机位置为射线起点
 	const FVector Start = InstanceData.Character->GetFirstPersonCameraComponent()->GetComponentLocation();
 
-	// ignore the character and target. We want to ensure there's an unobstructed trace not counting them
+	// 忽略角色和目标，确保检测到的是障碍物
 	FCollisionQueryParams QueryParams;
 	QueryParams.AddIgnoredActor(InstanceData.Character);
 	QueryParams.AddIgnoredActor(InstanceData.Target);
 
 	FHitResult OutHit;
 
-	// run a number of vertically offset line traces to the target location
+	// 多次垂直偏移地执行视线检测
 	for (int32 i = 0; i < InstanceData.NumberOfVerticalLineOfSightChecks - 1; ++i)
 	{
-		// calculate the endpoint for the trace
+		// 计算射线终点高度
 		const FVector End = CenterOfMass + FVector(0.0f, 0.0f, Extent.Z - ExtentZOffset * i);
 
 		InstanceData.Character->GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, ECC_Visibility, QueryParams);
 
-		// is the trace unobstructed?
+		// 检查射线是否未被阻挡
 		if (!OutHit.bBlockingHit)
 		{
-			// we only need one unobstructed trace, so terminate early
+			// 只要有一次不受阻就可以提前返回
 			return InstanceData.bMustHaveLineOfSight;
 		}
 	}
 
-	// no line of sight found
+	// 没有通过任何视线检测
 	return !InstanceData.bMustHaveLineOfSight;
 }
 
 #if WITH_EDITOR
-FText FStateTreeLineOfSightToTargetCondition::GetDescription(const FGuid& ID, FStateTreeDataView InstanceDataView, const IStateTreeBindingLookup& BindingLookup, EStateTreeNodeFormatting Formatting /*= EStateTreeNodeFormatting::Text*/) const
+FText FStateTreeLineOfSightToTargetCondition::GetDescription(const FGuid &ID, FStateTreeDataView InstanceDataView, const IStateTreeBindingLookup &BindingLookup, EStateTreeNodeFormatting Formatting /*= EStateTreeNodeFormatting::Text*/) const
 {
 	return FText::FromString("<b>Has Line of Sight</b>");
 }
@@ -78,36 +77,36 @@ FText FStateTreeLineOfSightToTargetCondition::GetDescription(const FGuid& ID, FS
 
 ////////////////////////////////////////////////////////////////////
 
-EStateTreeRunStatus FStateTreeFaceActorTask::EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
+EStateTreeRunStatus FStateTreeFaceActorTask::EnterState(FStateTreeExecutionContext &Context, const FStateTreeTransitionResult &Transition) const
 {
-	// have we transitioned from another state?
+	// 是否从其他状态切换过来？
 	if (Transition.ChangeType == EStateTreeStateChangeType::Changed)
 	{
-		// get the instance data
-		FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+		// 获取实例数据
+		FInstanceDataType &InstanceData = Context.GetInstanceData(*this);
 
-		// set the AI Controller's focus
+		// 设置 AI 控制器关注的 Actor
 		InstanceData.Controller->SetFocus(InstanceData.ActorToFaceTowards);
 	}
 
 	return EStateTreeRunStatus::Running;
 }
 
-void FStateTreeFaceActorTask::ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
+void FStateTreeFaceActorTask::ExitState(FStateTreeExecutionContext &Context, const FStateTreeTransitionResult &Transition) const
 {
-	// have we transitioned to another state?
+	// 是否切换到其他状态？
 	if (Transition.ChangeType == EStateTreeStateChangeType::Changed)
 	{
-		// get the instance data
-		FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+		// 获取实例数据
+		FInstanceDataType &InstanceData = Context.GetInstanceData(*this);
 
-		// clear the AI Controller's focus
+		// 清除控制器的关注点
 		InstanceData.Controller->ClearFocus(EAIFocusPriority::Gameplay);
 	}
 }
 
 #if WITH_EDITOR
-FText FStateTreeFaceActorTask::GetDescription(const FGuid& ID, FStateTreeDataView InstanceDataView, const IStateTreeBindingLookup& BindingLookup, EStateTreeNodeFormatting Formatting /*= EStateTreeNodeFormatting::Text*/) const
+FText FStateTreeFaceActorTask::GetDescription(const FGuid &ID, FStateTreeDataView InstanceDataView, const IStateTreeBindingLookup &BindingLookup, EStateTreeNodeFormatting Formatting /*= EStateTreeNodeFormatting::Text*/) const
 {
 	return FText::FromString("<b>Face Towards Actor</b>");
 }
@@ -115,36 +114,36 @@ FText FStateTreeFaceActorTask::GetDescription(const FGuid& ID, FStateTreeDataVie
 
 ////////////////////////////////////////////////////////////////////
 
-EStateTreeRunStatus FStateTreeFaceLocationTask::EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
+EStateTreeRunStatus FStateTreeFaceLocationTask::EnterState(FStateTreeExecutionContext &Context, const FStateTreeTransitionResult &Transition) const
 {
-	// have we transitioned from another state?
+	// 是否从其他状态切换过来？
 	if (Transition.ChangeType == EStateTreeStateChangeType::Changed)
 	{
-		// get the instance data
-		FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+		// 取出实例数据
+		FInstanceDataType &InstanceData = Context.GetInstanceData(*this);
 
-		// set the AI Controller's focus
+		// 设置 AI 控制器的注视点
 		InstanceData.Controller->SetFocalPoint(InstanceData.FaceLocation);
 	}
 
 	return EStateTreeRunStatus::Running;
 }
 
-void FStateTreeFaceLocationTask::ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
+void FStateTreeFaceLocationTask::ExitState(FStateTreeExecutionContext &Context, const FStateTreeTransitionResult &Transition) const
 {
-	// have we transitioned to another state?
+	// 是否切换到其他状态？
 	if (Transition.ChangeType == EStateTreeStateChangeType::Changed)
 	{
-		// get the instance data
-		FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+		// 取出实例数据
+		FInstanceDataType &InstanceData = Context.GetInstanceData(*this);
 
-		// clear the AI Controller's focus
+		// 清除 AI 控制器的注视点
 		InstanceData.Controller->ClearFocus(EAIFocusPriority::Gameplay);
 	}
 }
 
 #if WITH_EDITOR
-FText FStateTreeFaceLocationTask::GetDescription(const FGuid& ID, FStateTreeDataView InstanceDataView, const IStateTreeBindingLookup& BindingLookup, EStateTreeNodeFormatting Formatting /*= EStateTreeNodeFormatting::Text*/) const
+FText FStateTreeFaceLocationTask::GetDescription(const FGuid &ID, FStateTreeDataView InstanceDataView, const IStateTreeBindingLookup &BindingLookup, EStateTreeNodeFormatting Formatting /*= EStateTreeNodeFormatting::Text*/) const
 {
 	return FText::FromString("<b>Face Towards Location</b>");
 }
@@ -152,15 +151,15 @@ FText FStateTreeFaceLocationTask::GetDescription(const FGuid& ID, FStateTreeData
 
 ////////////////////////////////////////////////////////////////////
 
-EStateTreeRunStatus FStateTreeSetRandomFloatTask::EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
+EStateTreeRunStatus FStateTreeSetRandomFloatTask::EnterState(FStateTreeExecutionContext &Context, const FStateTreeTransitionResult &Transition) const
 {
-	// have we transitioned to another state?
+	// 是否刚刚切换到这个状态？
 	if (Transition.ChangeType == EStateTreeStateChangeType::Changed)
 	{
-		// get the instance data
-		FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+		// 取出任务对应的实例数据
+		FInstanceDataType &InstanceData = Context.GetInstanceData(*this);
 
-		// calculate the output value
+		// 计算随机数输出
 		InstanceData.OutValue = FMath::RandRange(InstanceData.MinValue, InstanceData.MaxValue);
 	}
 
@@ -168,7 +167,7 @@ EStateTreeRunStatus FStateTreeSetRandomFloatTask::EnterState(FStateTreeExecution
 }
 
 #if WITH_EDITOR
-FText FStateTreeSetRandomFloatTask::GetDescription(const FGuid& ID, FStateTreeDataView InstanceDataView, const IStateTreeBindingLookup& BindingLookup, EStateTreeNodeFormatting Formatting /*= EStateTreeNodeFormatting::Text*/) const
+FText FStateTreeSetRandomFloatTask::GetDescription(const FGuid &ID, FStateTreeDataView InstanceDataView, const IStateTreeBindingLookup &BindingLookup, EStateTreeNodeFormatting Formatting /*= EStateTreeNodeFormatting::Text*/) const
 {
 	return FText::FromString("<b>Set Random Float</b>");
 }
@@ -176,139 +175,139 @@ FText FStateTreeSetRandomFloatTask::GetDescription(const FGuid& ID, FStateTreeDa
 
 ////////////////////////////////////////////////////////////////////
 
-EStateTreeRunStatus FStateTreeShootAtTargetTask::EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
+EStateTreeRunStatus FStateTreeShootAtTargetTask::EnterState(FStateTreeExecutionContext &Context, const FStateTreeTransitionResult &Transition) const
 {
-	// have we transitioned from another state?
+	// 是否从其他状态切换过来？
 	if (Transition.ChangeType == EStateTreeStateChangeType::Changed)
 	{
-		// get the instance data
-		FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+		// 取出任务实例数据
+		FInstanceDataType &InstanceData = Context.GetInstanceData(*this);
 
-		// tell the character to shoot the target
+		// 让角色开始朝目标射击
 		InstanceData.Character->StartShooting(InstanceData.Target);
 	}
 
 	return EStateTreeRunStatus::Running;
 }
 
-void FStateTreeShootAtTargetTask::ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
+void FStateTreeShootAtTargetTask::ExitState(FStateTreeExecutionContext &Context, const FStateTreeTransitionResult &Transition) const
 {
-	// have we transitioned to another state?
+	// 是否切换到其他状态？
 	if (Transition.ChangeType == EStateTreeStateChangeType::Changed)
 	{
-		// get the instance data
-		FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+		// 取出任务实例数据
+		FInstanceDataType &InstanceData = Context.GetInstanceData(*this);
 
-		// tell the character to stop shooting
+		// 让角色停止射击
 		InstanceData.Character->StopShooting();
 	}
 }
 
 #if WITH_EDITOR
-FText FStateTreeShootAtTargetTask::GetDescription(const FGuid& ID, FStateTreeDataView InstanceDataView, const IStateTreeBindingLookup& BindingLookup, EStateTreeNodeFormatting Formatting /*= EStateTreeNodeFormatting::Text*/) const
+FText FStateTreeShootAtTargetTask::GetDescription(const FGuid &ID, FStateTreeDataView InstanceDataView, const IStateTreeBindingLookup &BindingLookup, EStateTreeNodeFormatting Formatting /*= EStateTreeNodeFormatting::Text*/) const
 {
 	return FText::FromString("<b>Shoot at Target</b>");
 }
 #endif // WITH_EDITOR
 
-EStateTreeRunStatus FStateTreeSenseEnemiesTask::EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
+EStateTreeRunStatus FStateTreeSenseEnemiesTask::EnterState(FStateTreeExecutionContext &Context, const FStateTreeTransitionResult &Transition) const
 {
-	// have we transitioned from another state?
+	// 是否刚刚切换到这个状态？
 	if (Transition.ChangeType == EStateTreeStateChangeType::Changed)
 	{
-		// get the instance data
-		FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+		// 取出任务实例数据
+		FInstanceDataType &InstanceData = Context.GetInstanceData(*this);
 
-		// bind the perception updated delegate on the controller
+		// 将感知更新委托绑定到控制器
 		InstanceData.Controller->OnShooterPerceptionUpdated.BindLambda(
-			[WeakContext = Context.MakeWeakExecutionContext()](AActor* SensedActor, const FAIStimulus& Stimulus)
+			[WeakContext = Context.MakeWeakExecutionContext()](AActor *SensedActor, const FAIStimulus &Stimulus)
 			{
-				// get the instance data inside the lambda
+				// 在 lambda 内获取实例数据
 				const FStateTreeStrongExecutionContext StrongContext = WeakContext.MakeStrongExecutionContext();
-				if (FInstanceDataType* LambdaInstanceData = StrongContext.GetInstanceDataPtr<FInstanceDataType>())
+				if (FInstanceDataType *LambdaInstanceData = StrongContext.GetInstanceDataPtr<FInstanceDataType>())
 				{
 					if (SensedActor->ActorHasTag(LambdaInstanceData->SenseTag))
 					{
 						bool bDirectLOS = false;
 
-						// calculate the direction of the stimulus
+						// 计算刺激来源方向
 						const FVector StimulusDir = (Stimulus.StimulusLocation - LambdaInstanceData->Character->GetActorLocation()).GetSafeNormal();
 
-						// infer the angle from the dot product between the character facing and the stimulus direction
+						// 通过点乘推算角色朝向与刺激方向的夹角
 						const float DirDot = FVector::DotProduct(StimulusDir, LambdaInstanceData->Character->GetActorForwardVector());
 						const float MaxDot = FMath::Cos(FMath::DegreesToRadians(LambdaInstanceData->DirectLineOfSightCone));
 
-						// is the direction within our perception cone?
+						// 该方向是否在感知锥内？
 						if (DirDot >= MaxDot)
 						{
-							// run a line trace between the character and the sensed actor
+							// 在角色与感知的 Actor 之间发射一条射线测试遮挡
 							FCollisionQueryParams QueryParams;
 							QueryParams.AddIgnoredActor(LambdaInstanceData->Character);
 							QueryParams.AddIgnoredActor(SensedActor);
 
 							FHitResult OutHit;
 
-							// we have direct line of sight if this trace is unobstructed
+							// 若射线未被阻挡则说明直视到目标
 							bDirectLOS = !LambdaInstanceData->Character->GetWorld()->LineTraceSingleByChannel(OutHit, LambdaInstanceData->Character->GetActorLocation(), SensedActor->GetActorLocation(), ECC_Visibility, QueryParams);
-
 						}
 
-						// check if we have a direct line of sight to the stimulus
+						// 确认是否真正看到这个刺激源
 						if (bDirectLOS)
 						{
-							// set the controller's target
+							// 设置控制器的当前目标
 							LambdaInstanceData->Controller->SetCurrentTarget(SensedActor);
 
-							// set the task output
+							// 填充任务输出值
 							LambdaInstanceData->TargetActor = SensedActor;
 
-							// set the flags
+							// 更新感知状态标记
 							LambdaInstanceData->bHasTarget = true;
 							LambdaInstanceData->bHasInvestigateLocation = false;
 
-						// no direct line of sight to target
-						} else {
+							// 说明当前并未直视目标
+						}
+						else
+						{
 
-							// if we already have a target, ignore the partial sense and keep on them
+							// 如果已有目标则忽略非直视线的感知
 							if (!IsValid(LambdaInstanceData->TargetActor))
 							{
-								// is this stimulus stronger than the last one we had?
+								// 判断这个刺激是否比之前更强
 								if (Stimulus.Strength > LambdaInstanceData->LastStimulusStrength)
 								{
-									// update the stimulus strength
+									// 更新记录的刺激强度
 									LambdaInstanceData->LastStimulusStrength = Stimulus.Strength;
 
-									// set the investigate location
+									// 记录调查位置
 									LambdaInstanceData->InvestigateLocation = Stimulus.StimulusLocation;
 
-									// set the investigate flag
+									// 打开调查标记
 									LambdaInstanceData->bHasInvestigateLocation = true;
 								}
 							}
 						}
 					}
 				}
-			}
-		);
+			});
 
-		// bind the perception forgotten delegate on the controller
+		// 绑定感知遗忘委托。
 		InstanceData.Controller->OnShooterPerceptionForgotten.BindLambda(
-			[WeakContext = Context.MakeWeakExecutionContext()](AActor* SensedActor)
+			[WeakContext = Context.MakeWeakExecutionContext()](AActor *SensedActor)
 			{
-				// get the instance data inside the lambda
+				// 在 lambda 内获取实例数据
 				const FStateTreeStrongExecutionContext StrongContext = WeakContext.MakeStrongExecutionContext();
-				if (FInstanceDataType* LambdaInstanceData = StrongContext.GetInstanceDataPtr<FInstanceDataType>())
+				if (FInstanceDataType *LambdaInstanceData = StrongContext.GetInstanceDataPtr<FInstanceDataType>())
 				{
 					bool bForget = false;
 
-					// are we forgetting the current target?
+					// 是否正在遗忘当前目标？
 					if (SensedActor == LambdaInstanceData->TargetActor)
 					{
 						bForget = true;
 					}
-					else 
+					else
 					{
-						// are we forgetting about a partial sense?
+						// 是否正在放弃之前部分感知的位置？
 						if (!IsValid(LambdaInstanceData->TargetActor))
 						{
 							bForget = true;
@@ -317,44 +316,43 @@ EStateTreeRunStatus FStateTreeSenseEnemiesTask::EnterState(FStateTreeExecutionCo
 
 					if (bForget)
 					{
-						// clear the target
+						// 清空目标
 						LambdaInstanceData->TargetActor = nullptr;
 
-						// clear the flags
+						// 重置标记
 						LambdaInstanceData->bHasInvestigateLocation = false;
 						LambdaInstanceData->bHasTarget = false;
 
-						// reset the stimulus strength
+						// 清除记录的刺激强度
 						LambdaInstanceData->LastStimulusStrength = 0.0f;
 
-						// clear the target on the controller
+						// 清空控制器当前目标
 						LambdaInstanceData->Controller->ClearCurrentTarget();
 						LambdaInstanceData->Controller->ClearFocus(EAIFocusPriority::Gameplay);
 					}
 				}
-			}
-		);
+			});
 	}
 
 	return EStateTreeRunStatus::Running;
 }
 
-void FStateTreeSenseEnemiesTask::ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
+void FStateTreeSenseEnemiesTask::ExitState(FStateTreeExecutionContext &Context, const FStateTreeTransitionResult &Transition) const
 {
-	// have we transitioned to another state?
+	// 退出时是否正在切换到其他状态？
 	if (Transition.ChangeType == EStateTreeStateChangeType::Changed)
 	{
-		// get the instance data
-		FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+		// 取出任务实例数据
+		FInstanceDataType &InstanceData = Context.GetInstanceData(*this);
 
-		// unbind the perception delegates
+		// 解除感知委托的绑定，防止继续接收通知
 		InstanceData.Controller->OnShooterPerceptionUpdated.Unbind();
 		InstanceData.Controller->OnShooterPerceptionForgotten.Unbind();
 	}
 }
 
 #if WITH_EDITOR
-FText FStateTreeSenseEnemiesTask::GetDescription(const FGuid& ID, FStateTreeDataView InstanceDataView, const IStateTreeBindingLookup& BindingLookup, EStateTreeNodeFormatting Formatting /*= EStateTreeNodeFormatting::Text*/) const
+FText FStateTreeSenseEnemiesTask::GetDescription(const FGuid &ID, FStateTreeDataView InstanceDataView, const IStateTreeBindingLookup &BindingLookup, EStateTreeNodeFormatting Formatting /*= EStateTreeNodeFormatting::Text*/) const
 {
 	return FText::FromString("<b>Sense Enemies</b>");
 }

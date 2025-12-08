@@ -12,98 +12,103 @@ class ACharacter;
 class UPrimitiveComponent;
 
 /**
- *  Simple projectile class for a first person shooter game
+ *  简单第一人称射击投射物类
  */
 UCLASS(abstract)
 class PROJECT2_API AShooterProjectile : public AActor
 {
 	GENERATED_BODY()
-	
-	/** Provides collision detection for the projectile */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
-	USphereComponent* CollisionComponent;
 
-	/** Handles movement for the projectile */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
-	UProjectileMovementComponent* ProjectileMovement;
+	/** 提供碰撞检测的球形组件 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	USphereComponent *CollisionComponent;
+
+	/** 控制投射物移动的组件 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	UProjectileMovementComponent *ProjectileMovement;
 
 protected:
 
-	/** Loudness of the AI perception noise done by this projectile on hit */
-	UPROPERTY(EditAnywhere, Category="Projectile|Noise", meta = (ClampMin = 0, ClampMax = 100))
+	/**重力系数 - 喷射战士风格抛物线弹道*/
+	UPROPERTY(EditAnywhere, Category = "Projectile|Movement")
+	float GravityScale = 0.8f;
+
+	/**子弹速度 - 喷射战士风格中等速度 (50米/秒)*/
+	UPROPERTY(EditAnywhere, Category = "Projectile|Movement")
+	float Speed = 5000.0f;
+	
+
+	/** 命中后产生的 AI 噪声音量 */
+	UPROPERTY(EditAnywhere, Category = "Projectile|Noise", meta = (ClampMin = 0, ClampMax = 100))
 	float NoiseLoudness = 3.0f;
 
-	/** Range of the AI perception noise done by this projectile on hit */
-	UPROPERTY(EditAnywhere, Category="Projectile|Noise", meta = (ClampMin = 0, ClampMax = 100000, Units = "cm"))
+	/** 命中后噪声影响范围 */
+	UPROPERTY(EditAnywhere, Category = "Projectile|Noise", meta = (ClampMin = 0, ClampMax = 100000, Units = "cm"))
 	float NoiseRange = 3000.0f;
 
-	/** Tag of the AI perception noise done by this projectile on hit */
-	UPROPERTY(EditAnywhere, Category="Noise")
+	/** 噪声标签 */
+	UPROPERTY(EditAnywhere, Category = "Noise")
 	FName NoiseTag = FName("Projectile");
 
-	/** Physics force to apply on hit */
-	UPROPERTY(EditAnywhere, Category="Projectile|Hit", meta = (ClampMin = 0, ClampMax = 50000))
+	/** 命中时施加的物理冲击 */
+	UPROPERTY(EditAnywhere, Category = "Projectile|Hit", meta = (ClampMin = 0, ClampMax = 50000))
 	float PhysicsForce = 100.0f;
 
-	/** Damage to apply on hit */
-	UPROPERTY(EditAnywhere, Category="Projectile|Hit", meta = (ClampMin = 0, ClampMax = 100))
+	/** 命中造成的伤害 */
+	UPROPERTY(EditAnywhere, Category = "Projectile|Hit", meta = (ClampMin = 0, ClampMax = 100))
 	float HitDamage = 25.0f;
 
-	/** Type of damage to apply. Can be used to represent specific types of damage such as fire, explosion, etc. */
-	UPROPERTY(EditAnywhere, Category="Projectile|Hit")
+	/** 伤害类型，可表示火焰、爆炸等 */
+	UPROPERTY(EditAnywhere, Category = "Projectile|Hit")
 	TSubclassOf<UDamageType> HitDamageType;
 
-	/** If true, the projectile can damage the character that shot it */
-	UPROPERTY(EditAnywhere, Category="Projectile|Hit")
+	/** 是否允许伤害自身 */
+	UPROPERTY(EditAnywhere, Category = "Projectile|Hit")
 	bool bDamageOwner = false;
 
-	/** If true, the projectile will explode and apply radial damage to all actors in range */
-	UPROPERTY(EditAnywhere, Category="Projectile|Explosion")
+	/** 是否爆炸并对周围角色造成径向伤害 */
+	UPROPERTY(EditAnywhere, Category = "Projectile|Explosion")
 	bool bExplodeOnHit = false;
 
-	/** Max distance for actors to be affected by explosion damage */
-	UPROPERTY(EditAnywhere, Category="Projectile|Explosion", meta = (ClampMin = 0, ClampMax = 5000, Units = "cm"))
-	float ExplosionRadius = 500.0f;	
+	/** 爆炸影响的最大距离 */
+	UPROPERTY(EditAnywhere, Category = "Projectile|Explosion", meta = (ClampMin = 0, ClampMax = 5000, Units = "cm"))
+	float ExplosionRadius = 500.0f;
 
-	/** If true, this projectile has already hit another surface */
+	/** 是否已命中某个表面 */
 	bool bHit = false;
 
-	/** How long to wait after a hit before destroying this projectile */
-	UPROPERTY(EditAnywhere, Category="Projectile|Destruction", meta = (ClampMin = 0, ClampMax = 10, Units = "s"))
+	/** 命中后等待多长时间再销毁 */
+	UPROPERTY(EditAnywhere, Category = "Projectile|Destruction", meta = (ClampMin = 0, ClampMax = 10, Units = "s"))
 	float DeferredDestructionTime = 5.0f;
 
-	/** Timer to handle deferred destruction of this projectile */
+	/** 延迟销毁计时器 */
 	FTimerHandle DestructionTimer;
 
-public:	
-
-	/** Constructor */
+public:
+	/** 构造函数 */
 	AShooterProjectile();
 
 protected:
-	
-	/** Gameplay initialization */
+	/** 游戏初始化 */
 	virtual void BeginPlay() override;
 
-	/** Gameplay cleanup */
+	/** 游戏结束清理 */
 	virtual void EndPlay(EEndPlayReason::Type EndPlayReason) override;
 
-	/** Handles collision */
-	virtual void NotifyHit(class UPrimitiveComponent* MyComp, AActor* Other, UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit) override;
+	/** 处理碰撞 */
+	virtual void NotifyHit(class UPrimitiveComponent *MyComp, AActor *Other, UPrimitiveComponent *OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult &Hit) override;
 
 protected:
+	/** 检查爆炸范围内的角色并造成伤害 */
+	void ExplosionCheck(const FVector &ExplosionCenter);
 
-	/** Looks up actors within the explosion radius and damages them */
-	void ExplosionCheck(const FVector& ExplosionCenter);
+	/** 处理单个命中 */
+	void ProcessHit(AActor *HitActor, UPrimitiveComponent *HitComp, const FVector &HitLocation, const FVector &HitDirection);
 
-	/** Processes a projectile hit for the given actor */
-	void ProcessHit(AActor* HitActor, UPrimitiveComponent* HitComp, const FVector& HitLocation, const FVector& HitDirection);
+	/** 交给蓝图实现命中特效 */
+	UFUNCTION(BlueprintImplementableEvent, Category = "Projectile", meta = (DisplayName = "On Projectile Hit"))
+	void BP_OnProjectileHit(const FHitResult &Hit);
 
-	/** Passes control to Blueprint to implement any effects on hit. */
-	UFUNCTION(BlueprintImplementableEvent, Category="Projectile", meta = (DisplayName = "On Projectile Hit"))
-	void BP_OnProjectileHit(const FHitResult& Hit);
-
-	/** Called from the destruction timer to destroy this projectile */
+	/** 销毁计时器回调 */
 	void OnDeferredDestruction();
-
 };

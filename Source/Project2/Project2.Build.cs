@@ -25,20 +25,18 @@ public class Project2 : ModuleRules
 
 		PublicIncludePaths.AddRange(new string[] {
 			"Project2",
-			"Project2/Variant_Horror",
-			"Project2/Variant_Horror/UI",
 			"Project2/Variant_Shooter",
 			"Project2/Variant_Shooter/AI",
 			"Project2/Variant_Shooter/UI",
 			"Project2/Variant_Shooter/Weapons"
 		});
 
-		// Uncomment if you are using Slate UI
+		// 若使用 Slate UI，请取消注释下方依赖
 		// PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
 
-		// Uncomment if you are using online features
+		// 若需要在线功能，请取消注释下方依赖
 		// PrivateDependencyModuleNames.Add("OnlineSubsystem");
 
-		// To include OnlineSubsystemSteam, add it to the plugins section in your uproject file with the Enabled attribute set to true
+		// 若使用 OnlineSubsystemSteam，需在 uproject 插件配置中启用该模块
 	}
 }

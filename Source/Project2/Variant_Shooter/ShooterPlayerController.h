@@ -11,76 +11,73 @@ class AShooterCharacter;
 class UShooterBulletCounterUI;
 
 /**
- *  Simple PlayerController for a first person shooter game
- *  Manages input mappings
- *  Respawns the player pawn when it's destroyed
+ *  简单第一人称射击游戏的玩家控制器
+ *  管理输入映射并监听角色死亡协助重生
  */
-UCLASS(abstract, config="Game")
+UCLASS(abstract, config = "Game")
 class PROJECT2_API AShooterPlayerController : public APlayerController
 {
 	GENERATED_BODY()
-	
+
 protected:
+	/** 默认输入映射上下文集合 */
+	UPROPERTY(EditAnywhere, Category = "Input|Input Mappings")
+	TArray<UInputMappingContext *> DefaultMappingContexts;
 
-	/** Input mapping contexts for this player */
-	UPROPERTY(EditAnywhere, Category="Input|Input Mappings")
-	TArray<UInputMappingContext*> DefaultMappingContexts;
+	/** 仅在非触控模式下加载的映射 */
+	UPROPERTY(EditAnywhere, Category = "Input|Input Mappings")
+	TArray<UInputMappingContext *> MobileExcludedMappingContexts;
 
-	/** Input Mapping Contexts */
-	UPROPERTY(EditAnywhere, Category="Input|Input Mappings")
-	TArray<UInputMappingContext*> MobileExcludedMappingContexts;
-
-	/** Mobile controls widget to spawn */
-	UPROPERTY(EditAnywhere, Category="Input|Touch Controls")
+	/** 要生成的移动触控 UI 类 */
+	UPROPERTY(EditAnywhere, Category = "Input|Touch Controls")
 	TSubclassOf<UUserWidget> MobileControlsWidgetClass;
 
-	/** Pointer to the mobile controls widget */
+	/** 移动触控控件实例 */
 	UPROPERTY()
 	TObjectPtr<UUserWidget> MobileControlsWidget;
 
-	/** If true, the player will use UMG touch controls even if not playing on mobile platforms */
+	/** 是否强制使用触控控件（即使在非移动平台也显示） */
 	UPROPERTY(EditAnywhere, Config, Category = "Input|Touch Controls")
 	bool bForceTouchControls = false;
 
-	/** Character class to respawn when the possessed pawn is destroyed */
-	UPROPERTY(EditAnywhere, Category="Shooter|Respawn")
+	/** 被控制角色死亡后重生用的角色类 */
+	UPROPERTY(EditAnywhere, Category = "Shooter|Respawn")
 	TSubclassOf<AShooterCharacter> CharacterClass;
 
-	/** Type of bullet counter UI widget to spawn */
-	UPROPERTY(EditAnywhere, Category="Shooter|UI")
+	/** 要生成的子弹计数器 UI 类 */
+	UPROPERTY(EditAnywhere, Category = "Shooter|UI")
 	TSubclassOf<UShooterBulletCounterUI> BulletCounterUIClass;
 
-	/** Tag to grant the possessed pawn to flag it as the player */
-	UPROPERTY(EditAnywhere, Category="Shooter|Player")
+	/** 赋予玩家角色的标签，方便识别 */
+	UPROPERTY(EditAnywhere, Category = "Shooter|Player")
 	FName PlayerPawnTag = FName("Player");
 
-	/** Pointer to the bullet counter UI widget */
+	/** 子弹计数器 UI 实例 */
 	UPROPERTY()
 	TObjectPtr<UShooterBulletCounterUI> BulletCounterUI;
 
 protected:
-
-	/** Gameplay Initialization */
+	/** 游戏初始化 */
 	virtual void BeginPlay() override;
 
-	/** Initialize input bindings */
+	/** 配置输入绑定 */
 	virtual void SetupInputComponent() override;
 
-	/** Pawn initialization */
-	virtual void OnPossess(APawn* InPawn) override;
+	/** 拥有新角色时的初始化 */
+	virtual void OnPossess(APawn *InPawn) override;
 
-	/** Called if the possessed pawn is destroyed */
+	/** 被控制角色销毁时回调 */
 	UFUNCTION()
-	void OnPawnDestroyed(AActor* DestroyedActor);
+	void OnPawnDestroyed(AActor *DestroyedActor);
 
-	/** Called when the bullet count on the possessed pawn is updated */
+	/** 被控制角色子弹数更新时回调 */
 	UFUNCTION()
 	void OnBulletCountUpdated(int32 MagazineSize, int32 Bullets);
 
-	/** Called when the possessed pawn is damaged */
+	/** 被控制角色受伤时回调 */
 	UFUNCTION()
 	void OnPawnDamaged(float LifePercent);
 
-	/** Returns true if the player should use UMG touch controls */
+	/** 判断是否应当启用触控 UI */
 	bool ShouldUseTouchControls() const;
 };

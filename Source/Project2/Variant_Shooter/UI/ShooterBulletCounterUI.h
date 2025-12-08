@@ -7,20 +7,26 @@
 #include "ShooterBulletCounterUI.generated.h"
 
 /**
- *  Simple bullet counter UI widget for a first person shooter game
+ *  简单的第一人称射击弹药计数界面
+ *  通过 Blueprint 实现具体的 UI 更新逻辑
  */
 UCLASS(abstract)
 class PROJECT2_API UShooterBulletCounterUI : public UUserWidget
 {
 	GENERATED_BODY()
-	
-public:
 
-	/** Allows Blueprint to update sub-widgets with the new bullet count */
-	UFUNCTION(BlueprintImplementableEvent, Category="Shooter", meta=(DisplayName = "UpdateBulletCounter"))
+public:
+	/**
+	 *  Blueprint 接口，收到当前弹匣容量与剩余子弹值后刷新显示。
+	 *  实现时可同步更新进度条/数字文本。
+	 */
+	UFUNCTION(BlueprintImplementableEvent, Category = "Shooter", meta = (DisplayName = "UpdateBulletCounter"))
 	void BP_UpdateBulletCounter(int32 MagazineSize, int32 BulletCount);
 
-	/** Allows Blueprint to update sub-widgets with the new life total and play a damage effect on the HUD */
-	UFUNCTION(BlueprintImplementableEvent, Category="Shooter", meta=(DisplayName = "Damaged"))
+	/**
+	 *  Blueprint 接口，传递当前生命比例以播放受伤反馈。
+	 *  实现可触发屏幕抖动、血量提示或其他 HUD 效果。
+	 */
+	UFUNCTION(BlueprintImplementableEvent, Category = "Shooter", meta = (DisplayName = "Damaged"))
 	void BP_Damaged(float LifePercent);
 };

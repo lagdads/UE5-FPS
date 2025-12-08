@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
 #include "ShooterWeapon.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Engine/World.h"
@@ -16,10 +15,10 @@ AShooterWeapon::AShooterWeapon()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	// create the root
+	// 创建根节点组件
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 
-	// create the first person mesh
+	// 创建第一人称网格
 	FirstPersonMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("First Person Mesh"));
 	FirstPersonMesh->SetupAttachment(RootComponent);
 
@@ -27,7 +26,7 @@ AShooterWeapon::AShooterWeapon()
 	FirstPersonMesh->SetFirstPersonPrimitiveType(EFirstPersonPrimitiveType::FirstPerson);
 	FirstPersonMesh->bOnlyOwnerSee = true;
 
-	// create the third person mesh
+	// 创建第三人称网格
 	ThirdPersonMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Third Person Mesh"));
 	ThirdPersonMesh->SetupAttachment(RootComponent);
 
@@ -40,17 +39,17 @@ void AShooterWeapon::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// subscribe to the owner's destroyed delegate
+	// 订阅拥有者销毁事件
 	GetOwner()->OnDestroyed.AddDynamic(this, &AShooterWeapon::OnOwnerDestroyed);
 
-	// cast the weapon owner
+	// 缓存武器拥有者接口与 Pawn
 	WeaponOwner = Cast<IShooterWeaponHolder>(GetOwner());
 	PawnOwner = Cast<APawn>(GetOwner());
 
-	// fill the first ammo clip
+	// 填充初始弹匣
 	CurrentBullets = MagazineSize;
 
-	// attach the meshes to the owner
+	// 将网格附加给角色
 	WeaponOwner->AttachWeaponMeshes(this);
 }
 
@@ -58,161 +57,174 @@ void AShooterWeapon::EndPlay(EEndPlayReason::Type EndPlayReason)
 {
 	Super::EndPlay(EndPlayReason);
 
-	// clear the refire timer
+	// 清空射击计时器
 	GetWorld()->GetTimerManager().ClearTimer(RefireTimer);
 }
 
-void AShooterWeapon::OnOwnerDestroyed(AActor* DestroyedActor)
+void AShooterWeapon::OnOwnerDestroyed(AActor *DestroyedActor)
 {
-	// ensure this weapon is destroyed when the owner is destroyed
+	// 拥有者销毁时同时销毁武器
 	Destroy();
 }
 
 void AShooterWeapon::ActivateWeapon()
 {
-	// unhide this weapon
+	// 恢复武器可见
 	SetActorHiddenInGame(false);
 
-	// notify the owner
+	// 通知拥有者武器激活
 	WeaponOwner->OnWeaponActivated(this);
 }
 
 void AShooterWeapon::DeactivateWeapon()
 {
-	// ensure we're no longer firing this weapon while deactivated
+	// 停止射击以禁用武器
 	StopFiring();
 
-	// hide the weapon
+	// 隐藏武器
 	SetActorHiddenInGame(true);
 
-	// notify the owner
+	// 通知拥有者武器停用
 	WeaponOwner->OnWeaponDeactivated(this);
 }
 
 void AShooterWeapon::StartFiring()
 {
-	// raise the firing flag
+	// 记录正在开火
 	bIsFiring = true;
 
-	// check how much time has passed since we last shot
-	// this may be under the refire rate if the weapon shoots slow enough and the player is spamming the trigger
+	// 计算距离上次开火的时间
+	// 如果武器攻击慢且玩家狂按扳机，可能已经超过射击间隔
 	const float TimeSinceLastShot = GetWorld()->GetTimeSeconds() - TimeOfLastShot;
 
-	if (TimeSinceLastShot > RefireRate)
+	if (TimeSinceLastShot >= RefireRate)
 	{
-		// fire the weapon right away
+		// 立即射击
 		Fire();
+	}
+	else
+	{
 
-	} else {
-
-		// if we're full auto, schedule the next shot
+		// 全自动武器需要等待剩余的冷却时间
 		if (bFullAuto)
 		{
-			GetWorld()->GetTimerManager().SetTimer(RefireTimer, this, &AShooterWeapon::Fire, TimeSinceLastShot, false);
+			const float RemainingCooldown = RefireRate - TimeSinceLastShot;
+			GetWorld()->GetTimerManager().SetTimer(RefireTimer, this, &AShooterWeapon::Fire, RemainingCooldown, false);
 		}
-
 	}
 }
 
 void AShooterWeapon::StopFiring()
 {
-	// lower the firing flag
+	// 取消开火状态
 	bIsFiring = false;
 
-	// clear the refire timer
+	// 清除射击计时器
 	GetWorld()->GetTimerManager().ClearTimer(RefireTimer);
 }
 
 void AShooterWeapon::Fire()
 {
-	// ensure the player still wants to fire. They may have let go of the trigger
+	// 如果玩家松开扳机则停止继续射击
 	if (!bIsFiring)
 	{
 		return;
 	}
-	
-	// fire a projectile at the target
+
+	// 检查弹药是否耗尽
+	if (CurrentBullets <= 0)
+	{
+		// 自动重新装填弹匣
+		CurrentBullets = MagazineSize;
+		WeaponOwner->UpdateWeaponHUD(CurrentBullets, MagazineSize);
+		
+		// 本次不射击，等待下次触发
+		// 可在此处播放换弹音效/动画
+		return;
+	}
+
+	// 向目标位置发射投射物
 	FireProjectile(WeaponOwner->GetWeaponTargetLocation());
 
-	// update the time of our last shot
+	// 记录本次开火时间
 	TimeOfLastShot = GetWorld()->GetTimeSeconds();
 
-	// make noise so the AI perception system can hear us
+	// 产生噪声供 AI 感知
 	MakeNoise(ShotLoudness, PawnOwner, PawnOwner->GetActorLocation(), ShotNoiseRange, ShotNoiseTag);
 
-	// are we full auto?
+	// 全自动模式会继续调度射击
 	if (bFullAuto)
 	{
-		// schedule the next shot
+		// 继续定时射击
 		GetWorld()->GetTimerManager().SetTimer(RefireTimer, this, &AShooterWeapon::Fire, RefireRate, false);
-	} else {
-
-		// for semi-auto weapons, schedule the cooldown notification
+	}
+	else
+	{
+		// 半自动武器到时间后通知上层
 		GetWorld()->GetTimerManager().SetTimer(RefireTimer, this, &AShooterWeapon::FireCooldownExpired, RefireRate, false);
-
 	}
 }
 
 void AShooterWeapon::FireCooldownExpired()
 {
-	// notify the owner
+	// 通知拥有者半自动武器可以再次射击
 	WeaponOwner->OnSemiWeaponRefire();
 }
 
-void AShooterWeapon::FireProjectile(const FVector& TargetLocation)
+void AShooterWeapon::FireProjectile(const FVector &TargetLocation)
 {
-	// get the projectile transform
+	// 检查投射物类是否有效
+	if (!ProjectileClass)
+	{
+		return;
+	}
+
+	// 计算投射物生成变换
 	FTransform ProjectileTransform = CalculateProjectileSpawnTransform(TargetLocation);
-	
-	// spawn the projectile
+
+	// 生成投射物
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	SpawnParams.TransformScaleMethod = ESpawnActorScaleMethod::OverrideRootScale;
 	SpawnParams.Owner = GetOwner();
 	SpawnParams.Instigator = PawnOwner;
 
-	AShooterProjectile* Projectile = GetWorld()->SpawnActor<AShooterProjectile>(ProjectileClass, ProjectileTransform, SpawnParams);
+	AShooterProjectile *Projectile = GetWorld()->SpawnActor<AShooterProjectile>(ProjectileClass, ProjectileTransform, SpawnParams);
 
-	// play the firing montage
+	// 播放射击动画
 	WeaponOwner->PlayFiringMontage(FiringMontage);
 
-	// add recoil
+	// 添加后坐力反馈
 	WeaponOwner->AddWeaponRecoil(FiringRecoil);
 
-	// consume bullets
+	// 消耗子弹
 	--CurrentBullets;
 
-	// if the clip is depleted, reload it
-	if (CurrentBullets <= 0)
-	{
-		CurrentBullets = MagazineSize;
-	}
-
-	// update the weapon HUD
+	// 通知 HUD 弹药变化
 	WeaponOwner->UpdateWeaponHUD(CurrentBullets, MagazineSize);
 }
 
-FTransform AShooterWeapon::CalculateProjectileSpawnTransform(const FVector& TargetLocation) const
+FTransform AShooterWeapon::CalculateProjectileSpawnTransform(const FVector &TargetLocation) const
 {
-	// find the muzzle location
+	// 获取枪口位置
 	const FVector MuzzleLoc = FirstPersonMesh->GetSocketLocation(MuzzleSocketName);
 
-	// calculate the spawn location ahead of the muzzle
+	// 计算子弹生成点
 	const FVector SpawnLoc = MuzzleLoc + ((TargetLocation - MuzzleLoc).GetSafeNormal() * MuzzleOffset);
 
-	// find the aim rotation vector while applying some variance to the target 
+	// 计算带随机散布的朝向
 	const FRotator AimRot = UKismetMathLibrary::FindLookAtRotation(SpawnLoc, TargetLocation + (UKismetMathLibrary::RandomUnitVector() * AimVariance));
 
-	// return the built transform
+	// 返回最终变换
 	return FTransform(AimRot, SpawnLoc, FVector::OneVector);
 }
 
-const TSubclassOf<UAnimInstance>& AShooterWeapon::GetFirstPersonAnimInstanceClass() const
+const TSubclassOf<UAnimInstance> &AShooterWeapon::GetFirstPersonAnimInstanceClass() const
 {
 	return FirstPersonAnimInstanceClass;
 }
 
-const TSubclassOf<UAnimInstance>& AShooterWeapon::GetThirdPersonAnimInstanceClass() const
+const TSubclassOf<UAnimInstance> &AShooterWeapon::GetThirdPersonAnimInstanceClass() const
 {
 	return ThirdPersonAnimInstanceClass;
 }

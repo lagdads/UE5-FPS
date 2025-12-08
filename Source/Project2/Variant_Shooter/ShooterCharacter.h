@@ -16,172 +16,167 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FBulletCountUpdatedDelegate, int32,
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FDamagedDelegate, float, LifePercent);
 
 /**
- *  A player controllable first person shooter character
- *  Manages a weapon inventory through the IShooterWeaponHolder interface
- *  Manages health and death
+ *  可由玩家控制的第一人称射击角色
+ *  通过 IShooterWeaponHolder 接口管理武器
+ *  管理生命与死亡流程
  */
 UCLASS(abstract)
 class PROJECT2_API AShooterCharacter : public AProject2Character, public IShooterWeaponHolder
 {
 	GENERATED_BODY()
-	
-	/** AI Noise emitter component */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
-	UPawnNoiseEmitterComponent* PawnNoiseEmitter;
+
+	/** AI 噪声发射器组件 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	UPawnNoiseEmitterComponent *PawnNoiseEmitter;
 
 protected:
+	/** 射击输入动作 */
+	UPROPERTY(EditAnywhere, Category = "Input")
+	UInputAction *FireAction;
 
-	/** Fire weapon input action */
-	UPROPERTY(EditAnywhere, Category ="Input")
-	UInputAction* FireAction;
+	/** 切换武器输入动作 */
+	UPROPERTY(EditAnywhere, Category = "Input")
+	UInputAction *SwitchWeaponAction;
 
-	/** Switch weapon input action */
-	UPROPERTY(EditAnywhere, Category ="Input")
-	UInputAction* SwitchWeaponAction;
-
-	/** Name of the first person mesh weapon socket */
-	UPROPERTY(EditAnywhere, Category ="Weapons")
+	/** 第一人称网格的武器挂点名称 */
+	UPROPERTY(EditAnywhere, Category = "Weapons")
 	FName FirstPersonWeaponSocket = FName("HandGrip_R");
 
-	/** Name of the third person mesh weapon socket */
-	UPROPERTY(EditAnywhere, Category ="Weapons")
+	/** 第三人称网格的武器挂点名称 */
+	UPROPERTY(EditAnywhere, Category = "Weapons")
 	FName ThirdPersonWeaponSocket = FName("HandGrip_R");
 
-	/** Max distance to use for aim traces */
-	UPROPERTY(EditAnywhere, Category ="Aim", meta = (ClampMin = 0, ClampMax = 100000, Units = "cm"))
+	/** 瞄准射线的最大距离 */
+	UPROPERTY(EditAnywhere, Category = "Aim", meta = (ClampMin = 0, ClampMax = 100000, Units = "cm"))
 	float MaxAimDistance = 10000.0f;
 
-	/** Max HP this character can have */
-	UPROPERTY(EditAnywhere, Category="Health")
+	/** 最大生命值 */
+	UPROPERTY(EditAnywhere, Category = "Health")
 	float MaxHP = 500.0f;
 
-	/** Current HP remaining to this character */
+	/** 当前剩余生命值 */
 	float CurrentHP = 0.0f;
 
-	/** Team ID for this character*/
-	UPROPERTY(EditAnywhere, Category="Team")
+	/** 所属队伍 ID（用于识别/计分）*/
+	UPROPERTY(EditAnywhere, Category = "Team")
 	uint8 TeamByte = 0;
 
-	/** Actor tag to grant this character when it dies */
-	UPROPERTY(EditAnywhere, Category="Team")
+	/** 死亡时添加的标签 */
+	UPROPERTY(EditAnywhere, Category = "Team")
 	FName DeathTag = FName("Dead");
 
-	/** List of weapons picked up by the character */
-	TArray<AShooterWeapon*> OwnedWeapons;
+	// ** 默认武器类别 */
+	UPROPERTY(EditAnywhere, Category = "Weapons")
+	TSubclassOf<AShooterWeapon> DefaultWeaponClass;
 
-	/** Weapon currently equipped and ready to shoot with */
+	/** 拥有的武器列表 */
+	TArray<AShooterWeapon *> OwnedWeapons;
+
+	/** 当前装备的武器 */
 	TObjectPtr<AShooterWeapon> CurrentWeapon;
 
-	UPROPERTY(EditAnywhere, Category ="Destruction", meta = (ClampMin = 0, ClampMax = 10, Units = "s"))
+	UPROPERTY(EditAnywhere, Category = "Destruction", meta = (ClampMin = 0, ClampMax = 10, Units = "s"))
 	float RespawnTime = 5.0f;
 
 	FTimerHandle RespawnTimer;
 
 public:
-
-	/** Bullet count updated delegate */
+	/** 子弹数更新的委托 */
 	FBulletCountUpdatedDelegate OnBulletCountUpdated;
 
-	/** Damaged delegate */
+	/** 受伤委托 */
 	FDamagedDelegate OnDamaged;
 
 public:
-
-	/** Constructor */
+	/** 构造函数 */
 	AShooterCharacter();
 
 protected:
-
-	/** Gameplay initialization */
+	/** 游戏初始化 */
 	virtual void BeginPlay() override;
 
-	/** Gameplay cleanup */
+	/** 游戏结束清理 */
 	virtual void EndPlay(EEndPlayReason::Type EndPlayReason) override;
 
-	/** Set up input action bindings */
-	virtual void SetupPlayerInputComponent(UInputComponent* InputComponent) override;
+	/** 绑定输入动作 */
+	virtual void SetupPlayerInputComponent(UInputComponent *InputComponent) override;
 
 public:
-
-	/** Handle incoming damage */
-	virtual float TakeDamage(float Damage, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
+	/** 处理伤害 */
+	virtual float TakeDamage(float Damage, struct FDamageEvent const &DamageEvent, AController *EventInstigator, AActor *DamageCauser) override;
 
 public:
-
-	/** Handles aim inputs from either controls or UI interfaces */
+	/** 处理视角输入 */
 	virtual void DoAim(float Yaw, float Pitch) override;
 
-	/** Handles move inputs from either controls or UI interfaces */
-	virtual void DoMove(float Right, float Forward)  override;
+	/** 处理移动输入 */
+	virtual void DoMove(float Right, float Forward) override;
 
-	/** Handles jump start inputs from either controls or UI interfaces */
-	virtual void DoJumpStart()  override;
+	/** 处理跳跃开始输入 */
+	virtual void DoJumpStart() override;
 
-	/** Handles jump end inputs from either controls or UI interfaces */
-	virtual void DoJumpEnd()  override;
+	/** 处理跳跃结束输入 */
+	virtual void DoJumpEnd() override;
 
-	/** Handles start firing input */
-	UFUNCTION(BlueprintCallable, Category="Input")
+	/** 开始射击输入 */
+	UFUNCTION(BlueprintCallable, Category = "Input")
 	void DoStartFiring();
 
-	/** Handles stop firing input */
-	UFUNCTION(BlueprintCallable, Category="Input")
+	/** 停止射击输入 */
+	UFUNCTION(BlueprintCallable, Category = "Input")
 	void DoStopFiring();
 
-	/** Handles switch weapon input */
-	UFUNCTION(BlueprintCallable, Category="Input")
+	/** 切换武器输入 */
+	UFUNCTION(BlueprintCallable, Category = "Input")
 	void DoSwitchWeapon();
 
 public:
-
 	//~Begin IShooterWeaponHolder interface
 
-	/** Attaches a weapon's meshes to the owner */
-	virtual void AttachWeaponMeshes(AShooterWeapon* Weapon) override;
+	/** 将武器网格附加到角色 */
+	virtual void AttachWeaponMeshes(AShooterWeapon *Weapon) override;
 
-	/** Plays the firing montage for the weapon */
-	virtual void PlayFiringMontage(UAnimMontage* Montage) override;
+	/** 播放射击蒙太奇 */
+	virtual void PlayFiringMontage(UAnimMontage *Montage) override;
 
-	/** Applies weapon recoil to the owner */
+	/** 应用武器后坐力 */
 	virtual void AddWeaponRecoil(float Recoil) override;
 
-	/** Updates the weapon's HUD with the current ammo count */
+	/** 更新子弹 HUD */
 	virtual void UpdateWeaponHUD(int32 CurrentAmmo, int32 MagazineSize) override;
 
-	/** Calculates and returns the aim location for the weapon */
+	/** 计算武器瞄准位置 */
 	virtual FVector GetWeaponTargetLocation() override;
 
-	/** Gives a weapon of this class to the owner */
-	virtual void AddWeaponClass(const TSubclassOf<AShooterWeapon>& WeaponClass) override;
+	/** 增加一把指定类别的武器 */
+	virtual void AddWeaponClass(const TSubclassOf<AShooterWeapon> &WeaponClass) override;
 
-	/** Activates the passed weapon */
-	virtual void OnWeaponActivated(AShooterWeapon* Weapon) override;
+	/** 激活武器 */
+	virtual void OnWeaponActivated(AShooterWeapon *Weapon) override;
 
-	/** Deactivates the passed weapon */
-	virtual void OnWeaponDeactivated(AShooterWeapon* Weapon) override;
+	/** 取消激活武器 */
+	virtual void OnWeaponDeactivated(AShooterWeapon *Weapon) override;
 
-	/** Notifies the owner that the weapon cooldown has expired and it's ready to shoot again */
+	/** 半自动武器冷却完毕时回调 */
 	virtual void OnSemiWeaponRefire() override;
 
 	//~End IShooterWeaponHolder interface
 
 protected:
+	/** 判断角色是否已拥有指定类型武器 */
+	AShooterWeapon *FindWeaponOfType(TSubclassOf<AShooterWeapon> WeaponClass) const;
 
-	/** Returns true if the character already owns a weapon of the given class */
-	AShooterWeapon* FindWeaponOfType(TSubclassOf<AShooterWeapon> WeaponClass) const;
-
-	/** Called when this character's HP is depleted */
+	/** 生命耗尽时调用 */
 	void Die();
 
-	/** Called to allow Blueprint code to react to this character's death */
-	UFUNCTION(BlueprintImplementableEvent, Category="Shooter", meta = (DisplayName = "On Death"))
+	/** 允许蓝图响应角色死亡 */
+	UFUNCTION(BlueprintImplementableEvent, Category = "Shooter", meta = (DisplayName = "On Death"))
 	void BP_OnDeath();
 
-	/** Called from the respawn timer to destroy this character and force the PC to respawn */
+	/** 由重生计时器触发，销毁本体并迫使玩家重生 */
 	void OnRespawn();
 
 public:
-
-	/** Returns true if the character is dead */
+	/** 判断角色是否已经死亡 */
 	bool IsDead() const;
 };

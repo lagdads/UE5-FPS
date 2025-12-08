@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
 #include "Variant_Shooter/ShooterPlayerController.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
@@ -16,39 +15,38 @@ void AShooterPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// only spawn touch controls on local player controllers
+	// 仅在本地控制器上生成触控 UI
 	if (IsLocalPlayerController())
 	{
 		if (ShouldUseTouchControls())
 		{
-			// spawn the mobile controls widget
+			// 生成移动触控控件
 			MobileControlsWidget = CreateWidget<UUserWidget>(this, MobileControlsWidgetClass);
 
 			if (MobileControlsWidget)
 			{
-				// add the controls to the player screen
+				// 添加控件到玩家 UI
 				MobileControlsWidget->AddToPlayerScreen(0);
-
-			} else {
+			}
+			else
+			{
 
 				UE_LOG(LogProject2, Error, TEXT("Could not spawn mobile controls widget."));
-
 			}
 		}
 
-		// create the bullet counter widget and add it to the screen
+		// 生成并显示子弹计数器 UI
 		BulletCounterUI = CreateWidget<UShooterBulletCounterUI>(this, BulletCounterUIClass);
 
 		if (BulletCounterUI)
 		{
 			BulletCounterUI->AddToPlayerScreen(0);
-
-		} else {
+		}
+		else
+		{
 
 			UE_LOG(LogProject2, Error, TEXT("Could not spawn bullet counter widget."));
-
 		}
-		
 	}
 }
 
@@ -56,21 +54,21 @@ void AShooterPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
 
-	// only add IMCs for local player controllers
+	// 仅本地控制器添加输入映射上下文
 	if (IsLocalPlayerController())
 	{
-		// add the input mapping contexts
-		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
+		// 添加输入映射上下文
+		if (UEnhancedInputLocalPlayerSubsystem *Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
 		{
-			for (UInputMappingContext* CurrentContext : DefaultMappingContexts)
+			for (UInputMappingContext *CurrentContext : DefaultMappingContexts)
 			{
 				Subsystem->AddMappingContext(CurrentContext, 0);
 			}
 
-			// only add these IMCs if we're not using mobile touch input
+			// 未启用触控时再添加额外映射
 			if (!ShouldUseTouchControls())
 			{
-				for (UInputMappingContext* CurrentContext : MobileExcludedMappingContexts)
+				for (UInputMappingContext *CurrentContext : MobileExcludedMappingContexts)
 				{
 					Subsystem->AddMappingContext(CurrentContext, 0);
 				}
@@ -79,51 +77,51 @@ void AShooterPlayerController::SetupInputComponent()
 	}
 }
 
-void AShooterPlayerController::OnPossess(APawn* InPawn)
+void AShooterPlayerController::OnPossess(APawn *InPawn)
 {
 	Super::OnPossess(InPawn);
 
-	// subscribe to the pawn's OnDestroyed delegate
+	// 订阅角色销毁事件
 	InPawn->OnDestroyed.AddDynamic(this, &AShooterPlayerController::OnPawnDestroyed);
 
-	// is this a shooter character?
-	if (AShooterCharacter* ShooterCharacter = Cast<AShooterCharacter>(InPawn))
+	// 判断是否为射击角色
+	if (AShooterCharacter *ShooterCharacter = Cast<AShooterCharacter>(InPawn))
 	{
-		// add the player tag
+		// 添加玩家标签
 		ShooterCharacter->Tags.Add(PlayerPawnTag);
 
-		// subscribe to the pawn's delegates
+		// 订阅子弹数与受伤委托
 		ShooterCharacter->OnBulletCountUpdated.AddDynamic(this, &AShooterPlayerController::OnBulletCountUpdated);
 		ShooterCharacter->OnDamaged.AddDynamic(this, &AShooterPlayerController::OnPawnDamaged);
 
-		// force update the life bar
+		// 强制刷新生命条，立即反映玩家初始血量
 		ShooterCharacter->OnDamaged.Broadcast(1.0f);
 	}
 }
 
-void AShooterPlayerController::OnPawnDestroyed(AActor* DestroyedActor)
+void AShooterPlayerController::OnPawnDestroyed(AActor *DestroyedActor)
 {
-	// reset the bullet counter HUD
+	// 重置子弹计数器 HUD
 	if (IsValid(BulletCounterUI))
 	{
 		BulletCounterUI->BP_UpdateBulletCounter(0, 0);
 	}
 
-	// find the player start
-	TArray<AActor*> ActorList;
+	// 查找所有 PlayerStart 以便重生
+	TArray<AActor *> ActorList;
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), APlayerStart::StaticClass(), ActorList);
 
 	if (ActorList.Num() > 0)
 	{
-		// select a random player start
-		AActor* RandomPlayerStart = ActorList[FMath::RandRange(0, ActorList.Num() - 1)];
+		// 随机选择一个玩家出生点
+		AActor *RandomPlayerStart = ActorList[FMath::RandRange(0, ActorList.Num() - 1)];
 
-		// spawn a character at the player start
+		// 在出生点生成角色并接管
 		const FTransform SpawnTransform = RandomPlayerStart->GetActorTransform();
 
-		if (AShooterCharacter* RespawnedCharacter = GetWorld()->SpawnActor<AShooterCharacter>(CharacterClass, SpawnTransform))
+		if (AShooterCharacter *RespawnedCharacter = GetWorld()->SpawnActor<AShooterCharacter>(CharacterClass, SpawnTransform))
 		{
-			// possess the character
+			// 控制此新生成的角色
 			Possess(RespawnedCharacter);
 		}
 	}
@@ -131,7 +129,7 @@ void AShooterPlayerController::OnPawnDestroyed(AActor* DestroyedActor)
 
 void AShooterPlayerController::OnBulletCountUpdated(int32 MagazineSize, int32 Bullets)
 {
-	// update the UI
+	// 使用最新弹匣/子弹数量更新 HUD
 	if (BulletCounterUI)
 	{
 		BulletCounterUI->BP_UpdateBulletCounter(MagazineSize, Bullets);
@@ -148,6 +146,6 @@ void AShooterPlayerController::OnPawnDamaged(float LifePercent)
 
 bool AShooterPlayerController::ShouldUseTouchControls() const
 {
-	// are we on a mobile platform? Should we force touch?
+	// 判断是否是移动平台或被强制开启触控界面
 	return SVirtualJoystick::ShouldDisplayTouchInterface() || bForceTouchControls;
 }

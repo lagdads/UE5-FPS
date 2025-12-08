@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
 #include "ShooterProjectile.h"
 #include "Components/SphereComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
@@ -17,7 +16,7 @@ AShooterProjectile::AShooterProjectile()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	// create the collision component and assign it as the root
+	// 创建碰撞球组件并设为根节点
 	RootComponent = CollisionComponent = CreateDefaultSubobject<USphereComponent>(TEXT("Collision Component"));
 
 	CollisionComponent->SetSphereRadius(16.0f);
@@ -25,22 +24,27 @@ AShooterProjectile::AShooterProjectile()
 	CollisionComponent->SetCollisionResponseToAllChannels(ECR_Block);
 	CollisionComponent->CanCharacterStepUpOn = ECanBeCharacterBase::ECB_No;
 
-	// create the projectile movement component. No need to attach it because it's not a Scene Component
+	// 创建投射物移动组件（非场景组件，无需 Attach）
 	ProjectileMovement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("Projectile Movement"));
-
-	ProjectileMovement->InitialSpeed = 3000.0f;
-	ProjectileMovement->MaxSpeed = 3000.0f;
+	
+	// 注意：不在构造函数中设置速度，应该在 PostInitializeComponents 中设置
+	// 这样蓝图中修改的值才能正确应用
 	ProjectileMovement->bShouldBounce = true;
 
-	// set the default damage type
+	// 设置默认伤害类型
 	HitDamageType = UDamageType::StaticClass();
 }
 
 void AShooterProjectile::BeginPlay()
 {
 	Super::BeginPlay();
-	
-	// ignore the pawn that shot this projectile
+
+	// 在 BeginPlay 时应用速度和重力设置
+	ProjectileMovement->InitialSpeed = Speed;
+	ProjectileMovement->MaxSpeed = Speed;
+	ProjectileMovement->ProjectileGravityScale = GravityScale;
+
+	// 忽略发射该投射物的 Pawn，避免自伤
 	CollisionComponent->IgnoreActorWhenMoving(GetInstigator(), true);
 }
 
@@ -48,13 +52,13 @@ void AShooterProjectile::EndPlay(EEndPlayReason::Type EndPlayReason)
 {
 	Super::EndPlay(EndPlayReason);
 
-	// clear the destruction timer
+	// 清除可能正在等待的销毁定时器
 	GetWorld()->GetTimerManager().ClearTimer(DestructionTimer);
 }
 
-void AShooterProjectile::NotifyHit(class UPrimitiveComponent* MyComp, AActor* Other, class UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit)
+void AShooterProjectile::NotifyHit(class UPrimitiveComponent *MyComp, AActor *Other, class UPrimitiveComponent *OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult &Hit)
 {
-	// ignore if we've already hit something else
+	// 已经命中过目标则不再重复处理
 	if (bHit)
 	{
 		return;
@@ -62,43 +66,44 @@ void AShooterProjectile::NotifyHit(class UPrimitiveComponent* MyComp, AActor* Ot
 
 	bHit = true;
 
-	// disable collision on the projectile
+	// 禁用碰撞，防止二次触发
 	CollisionComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
-	// make AI perception noise
+	// 产生 AI 噪声供感知系统使用
 	MakeNoise(NoiseLoudness, GetInstigator(), GetActorLocation(), NoiseRange, NoiseTag);
 
 	if (bExplodeOnHit)
 	{
-		
-		// apply explosion damage centered on the projectile
+
+		// 执行爆炸伤害检查
 		ExplosionCheck(GetActorLocation());
+	}
+	else
+	{
 
-	} else {
-
-		// single hit projectile. Process the collided actor
+		// 非爆炸的单体投射物，处理直接命中对象
 		ProcessHit(Other, OtherComp, Hit.ImpactPoint, -Hit.ImpactNormal);
-
 	}
 
-	// pass control to BP for any extra effects
+	// 交给蓝图触发额外特效
 	BP_OnProjectileHit(Hit);
 
-	// check if we should schedule deferred destruction of the projectile
+	// 决定是否延迟销毁
 	if (DeferredDestructionTime > 0.0f)
 	{
 		GetWorld()->GetTimerManager().SetTimer(DestructionTimer, this, &AShooterProjectile::OnDeferredDestruction, DeferredDestructionTime, false);
+	}
+	else
+	{
 
-	} else {
-
-		// destroy the projectile right away
+		// 立即销毁
 		Destroy();
 	}
 }
 
-void AShooterProjectile::ExplosionCheck(const FVector& ExplosionCenter)
+void AShooterProjectile::ExplosionCheck(const FVector &ExplosionCenter)
 {
-	// do a sphere overlap check look for nearby actors to damage
+	// 做一个球形重叠查询，寻找爆炸范围内的对象
 	TArray<FOverlapResult> Overlaps;
 
 	FCollisionShape OverlapShape;
@@ -118,50 +123,48 @@ void AShooterProjectile::ExplosionCheck(const FVector& ExplosionCenter)
 
 	GetWorld()->OverlapMultiByObjectType(Overlaps, ExplosionCenter, FQuat::Identity, ObjectParams, OverlapShape, QueryParams);
 
-	TArray<AActor*> DamagedActors;
+	TArray<AActor *> DamagedActors;
 
-	// process the overlap results
-	for (const FOverlapResult& CurrentOverlap : Overlaps)
+	// 处理重叠结果
+	for (const FOverlapResult &CurrentOverlap : Overlaps)
 	{
-		// overlaps may return the same actor multiple times per each component overlapped
-		// ensure we only damage each actor once by adding it to a damaged list
+		// 重叠查询可能返回同一个演员的多个组件，避免重复伤害
 		if (DamagedActors.Find(CurrentOverlap.GetActor()) == INDEX_NONE)
 		{
 			DamagedActors.Add(CurrentOverlap.GetActor());
 
-			// apply physics force away from the explosion
-			const FVector& ExplosionDir = CurrentOverlap.GetActor()->GetActorLocation() - GetActorLocation();
+			// 将爆炸力施加到该演员身上
+			const FVector &ExplosionDir = CurrentOverlap.GetActor()->GetActorLocation() - GetActorLocation();
 
-			// push and/or damage the overlapped actor
+			// 造成伤害并推动演员
 			ProcessHit(CurrentOverlap.GetActor(), CurrentOverlap.GetComponent(), GetActorLocation(), ExplosionDir.GetSafeNormal());
 		}
-			
 	}
 }
 
-void AShooterProjectile::ProcessHit(AActor* HitActor, UPrimitiveComponent* HitComp, const FVector& HitLocation, const FVector& HitDirection)
+void AShooterProjectile::ProcessHit(AActor *HitActor, UPrimitiveComponent *HitComp, const FVector &HitLocation, const FVector &HitDirection)
 {
-	// have we hit a character?
-	if (ACharacter* HitCharacter = Cast<ACharacter>(HitActor))
+	// 是否命中角色？
+	if (ACharacter *HitCharacter = Cast<ACharacter>(HitActor))
 	{
-		// ignore the owner of this projectile
+		// 默认忽略该投射物的拥有者，除非允许自伤
 		if (HitCharacter != GetOwner() || bDamageOwner)
 		{
-			// apply damage to the character
+			// 对角色造成伤害
 			UGameplayStatics::ApplyDamage(HitCharacter, HitDamage, GetInstigator()->GetController(), this, HitDamageType);
 		}
 	}
 
-	// have we hit a physics object?
+	// 是否碰到可模拟物理的组件？
 	if (HitComp->IsSimulatingPhysics())
 	{
-		// give some physics impulse to the object
+		// 添加冲击力制造反馈
 		HitComp->AddImpulseAtLocation(HitDirection * PhysicsForce, HitLocation);
 	}
 }
 
 void AShooterProjectile::OnDeferredDestruction()
 {
-	// destroy this actor
+	// 延迟销毁投射物
 	Destroy();
 }

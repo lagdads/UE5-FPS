@@ -12,10 +12,10 @@
 
 AProject2Character::AProject2Character()
 {
-	// Set size for collision capsule
+	// 设置角色碰撞胶囊大小
 	GetCapsuleComponent()->InitCapsuleSize(55.f, 96.0f);
-	
-	// Create the first person mesh that will be viewed only by this character's owner
+
+	// 创建仅本地玩家可见的第一人称手臂网格
 	FirstPersonMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("First Person Mesh"));
 
 	FirstPersonMesh->SetupAttachment(GetMesh());
@@ -23,7 +23,7 @@ AProject2Character::AProject2Character()
 	FirstPersonMesh->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::FirstPerson;
 	FirstPersonMesh->SetCollisionProfileName(FName("NoCollision"));
 
-	// Create the Camera Component	
+	// 创建第一人称相机并附加到头部骨骼
 	FirstPersonCameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("First Person Camera"));
 	FirstPersonCameraComponent->SetupAttachment(FirstPersonMesh, FName("head"));
 	FirstPersonCameraComponent->SetRelativeLocationAndRotation(FVector(-2.8f, 5.89f, 0.0f), FRotator(0.0f, 90.0f, -90.0f));
@@ -33,30 +33,30 @@ AProject2Character::AProject2Character()
 	FirstPersonCameraComponent->FirstPersonFieldOfView = 70.0f;
 	FirstPersonCameraComponent->FirstPersonScale = 0.6f;
 
-	// configure the character comps
+	// 配置角色网格：本地不可见（只显示第一人称手臂）
 	GetMesh()->SetOwnerNoSee(true);
 	GetMesh()->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::WorldSpaceRepresentation;
 
 	GetCapsuleComponent()->SetCapsuleSize(34.0f, 96.0f);
 
-	// Configure character movement
+	// 配置移动属性
 	GetCharacterMovement()->BrakingDecelerationFalling = 1500.0f;
 	GetCharacterMovement()->AirControl = 0.5f;
 }
 
-void AProject2Character::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
-{	
-	// Set up action bindings
-	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
+void AProject2Character::SetupPlayerInputComponent(UInputComponent *PlayerInputComponent)
+{
+	// 绑定增强输入动作
+	if (UEnhancedInputComponent *EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
 	{
-		// Jumping
+		// 跳跃开始/结束
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &AProject2Character::DoJumpStart);
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &AProject2Character::DoJumpEnd);
 
-		// Moving
+		// 移动
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AProject2Character::MoveInput);
 
-		// Looking/Aiming
+		// 视角/瞄准（手柄与鼠标）
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &AProject2Character::LookInput);
 		EnhancedInputComponent->BindAction(MouseLookAction, ETriggerEvent::Triggered, this, &AProject2Character::LookInput);
 	}
@@ -66,32 +66,29 @@ void AProject2Character::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 	}
 }
 
-
-void AProject2Character::MoveInput(const FInputActionValue& Value)
+void AProject2Character::MoveInput(const FInputActionValue &Value)
 {
-	// get the Vector2D move axis
+	// 读取二维移动输入（右、前）
 	FVector2D MovementVector = Value.Get<FVector2D>();
 
-	// pass the axis values to the move input
+	// 转交给实际移动逻辑
 	DoMove(MovementVector.X, MovementVector.Y);
-
 }
 
-void AProject2Character::LookInput(const FInputActionValue& Value)
+void AProject2Character::LookInput(const FInputActionValue &Value)
 {
-	// get the Vector2D look axis
+	// 读取二维视角输入（偏航、俯仰）
 	FVector2D LookAxisVector = Value.Get<FVector2D>();
 
-	// pass the axis values to the aim input
+	// 转交给实际视角逻辑
 	DoAim(LookAxisVector.X, LookAxisVector.Y);
-
 }
 
 void AProject2Character::DoAim(float Yaw, float Pitch)
 {
 	if (GetController())
 	{
-		// pass the rotation inputs
+		// 将旋转输入传给控制器
 		AddControllerYawInput(Yaw);
 		AddControllerPitchInput(Pitch);
 	}
@@ -101,7 +98,7 @@ void AProject2Character::DoMove(float Right, float Forward)
 {
 	if (GetController())
 	{
-		// pass the move inputs
+		// 将移动输入应用到角色
 		AddMovementInput(GetActorRightVector(), Right);
 		AddMovementInput(GetActorForwardVector(), Forward);
 	}
@@ -109,12 +106,12 @@ void AProject2Character::DoMove(float Right, float Forward)
 
 void AProject2Character::DoJumpStart()
 {
-	// pass Jump to the character
+	// 触发角色跳跃
 	Jump();
 }
 
 void AProject2Character::DoJumpEnd()
 {
-	// pass StopJumping to the character
+	// 停止跳跃输入
 	StopJumping();
 }

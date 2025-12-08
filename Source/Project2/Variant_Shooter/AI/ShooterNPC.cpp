@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
 #include "Variant_Shooter/AI/ShooterNPC.h"
 #include "ShooterWeapon.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -16,7 +15,7 @@ void AShooterNPC::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// spawn the weapon
+	// 生成武器实例并附着到角色
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.Owner = this;
 	SpawnParams.Instigator = this;
@@ -29,22 +28,22 @@ void AShooterNPC::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	Super::EndPlay(EndPlayReason);
 
-	// clear the death timer
+	// 清理死亡计时器，避免残留回调
 	GetWorld()->GetTimerManager().ClearTimer(DeathTimer);
 }
 
-float AShooterNPC::TakeDamage(float Damage, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+float AShooterNPC::TakeDamage(float Damage, struct FDamageEvent const &DamageEvent, AController *EventInstigator, AActor *DamageCauser)
 {
-	// ignore if already dead
+	// 已死亡则忽略后续伤害
 	if (bIsDead)
 	{
 		return 0.0f;
 	}
 
-	// Reduce HP
+	// 扣减生命值
 	CurrentHP -= Damage;
 
-	// Have we depleted HP?
+	// 判断是否死亡
 	if (CurrentHP <= 0.0f)
 	{
 		Die();
@@ -53,65 +52,64 @@ float AShooterNPC::TakeDamage(float Damage, struct FDamageEvent const& DamageEve
 	return Damage;
 }
 
-void AShooterNPC::AttachWeaponMeshes(AShooterWeapon* WeaponToAttach)
+void AShooterNPC::AttachWeaponMeshes(AShooterWeapon *WeaponToAttach)
 {
 	const FAttachmentTransformRules AttachmentRule(EAttachmentRule::SnapToTarget, false);
 
-	// attach the weapon actor
+	// 附加武器 Actor 到角色（保持变换）
 	WeaponToAttach->AttachToActor(this, AttachmentRule);
 
-	// attach the weapon meshes
+	// 附加第一人称与第三人称武器网格到各自挂点
 	WeaponToAttach->GetFirstPersonMesh()->AttachToComponent(GetFirstPersonMesh(), AttachmentRule, FirstPersonWeaponSocket);
 	WeaponToAttach->GetThirdPersonMesh()->AttachToComponent(GetMesh(), AttachmentRule, ThirdPersonWeaponSocket);
 }
 
-void AShooterNPC::PlayFiringMontage(UAnimMontage* Montage)
+void AShooterNPC::PlayFiringMontage(UAnimMontage *Montage)
 {
-	// unused
+	// 未使用：NPC 不播放开火蒙太奇
 }
 
 void AShooterNPC::AddWeaponRecoil(float Recoil)
 {
-	// unused
+	// 未使用：NPC 不应用后坐力给玩家
 }
 
 void AShooterNPC::UpdateWeaponHUD(int32 CurrentAmmo, int32 MagazineSize)
 {
-	// unused
+	// 未使用：NPC 不更新 HUD
 }
 
 FVector AShooterNPC::GetWeaponTargetLocation()
 {
-	// start aiming from the camera location
+	// 从相机位置开始计算射线
 	const FVector AimSource = GetFirstPersonCameraComponent()->GetComponentLocation();
 
 	FVector AimDir, AimTarget = FVector::ZeroVector;
 
-	// do we have an aim target?
+	// 是否有指定目标
 	if (CurrentAimTarget)
 	{
-		// target the actor location
+		// 以目标位置为基准
 		AimTarget = CurrentAimTarget->GetActorLocation();
 
-		// apply a vertical offset to target head/feet
+		// 在竖直方向随机偏移（模拟命中头/躯干）
 		AimTarget.Z += FMath::RandRange(MinAimOffsetZ, MaxAimOffsetZ);
 
-		// get the aim direction and apply randomness in a cone
+		// 计算方向并在锥体内加入随机
 		AimDir = (AimTarget - AimSource).GetSafeNormal();
 		AimDir = UKismetMathLibrary::RandomUnitVectorInConeInDegrees(AimDir, AimVarianceHalfAngle);
+	}
+	else
+	{
 
-		
-	} else {
-
-		// no aim target, so just use the camera facing
+		// 无目标则使用相机朝向并加随机散布
 		AimDir = UKismetMathLibrary::RandomUnitVectorInConeInDegrees(GetFirstPersonCameraComponent()->GetForwardVector(), AimVarianceHalfAngle);
-
 	}
 
-	// calculate the unobstructed aim target location
+	// 预估无阻挡的命中位置
 	AimTarget = AimSource + (AimDir * AimRange);
 
-	// run a visibility trace to see if there's obstructions
+	// 做一次可见性射线检测，确认是否被阻挡
 	FHitResult OutHit;
 
 	FCollisionQueryParams QueryParams;
@@ -119,71 +117,71 @@ FVector AShooterNPC::GetWeaponTargetLocation()
 
 	GetWorld()->LineTraceSingleByChannel(OutHit, AimSource, AimTarget, ECC_Visibility, QueryParams);
 
-	// return either the impact point or the trace end
+	// 返回命中点或射线终点
 	return OutHit.bBlockingHit ? OutHit.ImpactPoint : OutHit.TraceEnd;
 }
 
-void AShooterNPC::AddWeaponClass(const TSubclassOf<AShooterWeapon>& InWeaponClass)
+void AShooterNPC::AddWeaponClass(const TSubclassOf<AShooterWeapon> &InWeaponClass)
 {
-	// unused
+	// 未使用：NPC 不在此添加武器类型
 }
 
-void AShooterNPC::OnWeaponActivated(AShooterWeapon* InWeapon)
+void AShooterNPC::OnWeaponActivated(AShooterWeapon *InWeapon)
 {
-	// unused
+	// 未使用：NPC 不在此处理武器激活
 }
 
-void AShooterNPC::OnWeaponDeactivated(AShooterWeapon* InWeapon)
+void AShooterNPC::OnWeaponDeactivated(AShooterWeapon *InWeapon)
 {
-	// unused
+	// 未使用：NPC 不在此处理武器停用
 }
 
 void AShooterNPC::OnSemiWeaponRefire()
 {
-	// are we still shooting?
+	// 仍在射击状态则继续触发开火
 	if (bIsShooting)
 	{
-		// fire the weapon
+		// 通知武器开火
 		Weapon->StartFiring();
 	}
 }
 
 void AShooterNPC::Die()
 {
-	// ignore if already dead
+	// 已死亡则不重复处理
 	if (bIsDead)
 	{
 		return;
 	}
 
-	// raise the dead flag
+	// 标记死亡
 	bIsDead = true;
 
-	// grant the death tag to the character
+	// 添加死亡标签
 	Tags.Add(DeathTag);
 
-	// call the delegate
+	// 广播死亡事件
 	OnPawnDeath.Broadcast();
 
-	// increment the team score
-	if (AShooterGameMode* GM = Cast<AShooterGameMode>(GetWorld()->GetAuthGameMode()))
+	// 计分：通知游戏模式
+	if (AShooterGameMode *GM = Cast<AShooterGameMode>(GetWorld()->GetAuthGameMode()))
 	{
 		GM->IncrementTeamScore(TeamByte);
 	}
 
-	// disable capsule collision
+	// 关闭胶囊体碰撞
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
-	// stop movement
+	// 停止移动
 	GetCharacterMovement()->StopMovementImmediately();
 	GetCharacterMovement()->StopActiveMovement();
 
-	// enable ragdoll physics on the third person mesh
+	// 启用第三人称网格布娃娃
 	GetMesh()->SetCollisionProfileName(RagdollCollisionProfile);
 	GetMesh()->SetSimulatePhysics(true);
 	GetMesh()->SetPhysicsBlendWeight(1.0f);
 
-	// schedule actor destruction
+	// 启动延迟销毁计时器
 	GetWorld()->GetTimerManager().SetTimer(DeathTimer, this, &AShooterNPC::DeferredDestruction, DeferredDestructionTime, false);
 }
 
@@ -192,23 +190,23 @@ void AShooterNPC::DeferredDestruction()
 	Destroy();
 }
 
-void AShooterNPC::StartShooting(AActor* ActorToShoot)
+void AShooterNPC::StartShooting(AActor *ActorToShoot)
 {
-	// save the aim target
+	// 记录当前目标
 	CurrentAimTarget = ActorToShoot;
 
-	// raise the flag
+	// 标记正在射击
 	bIsShooting = true;
 
-	// signal the weapon
+	// 通知武器开始开火
 	Weapon->StartFiring();
 }
 
 void AShooterNPC::StopShooting()
 {
-	// lower the flag
+	// 取消射击标记
 	bIsShooting = false;
 
-	// signal the weapon
+	// 通知武器停止开火
 	Weapon->StopFiring();
 }

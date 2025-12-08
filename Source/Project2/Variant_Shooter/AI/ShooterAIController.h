@@ -10,76 +10,69 @@ class UStateTreeAIComponent;
 class UAIPerceptionComponent;
 struct FAIStimulus;
 
-DECLARE_DELEGATE_TwoParams(FShooterPerceptionUpdatedDelegate, AActor*, const FAIStimulus&);
-DECLARE_DELEGATE_OneParam(FShooterPerceptionForgottenDelegate, AActor*);
+DECLARE_DELEGATE_TwoParams(FShooterPerceptionUpdatedDelegate, AActor *, const FAIStimulus &);
+DECLARE_DELEGATE_OneParam(FShooterPerceptionForgottenDelegate, AActor *);
 
 /**
- *  Simple AI Controller for a first person shooter enemy
+ *  简单的第一人称射击敌人 AI 控制器
  */
 UCLASS(abstract)
 class PROJECT2_API AShooterAIController : public AAIController
 {
 	GENERATED_BODY()
-	
-	/** Runs the behavior StateTree for this NPC */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
-	UStateTreeAIComponent* StateTreeAI;
 
-	/** Detects other actors through sight, hearing and other senses */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
-	UAIPerceptionComponent* AIPerception;
+	/** 运行 NPC 的 StateTree 行为树组件 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	UStateTreeAIComponent *StateTreeAI;
+
+	/** 通过视觉、听觉等感知其他角色的感知组件 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	UAIPerceptionComponent *AIPerception;
 
 protected:
-
-	/** Team tag for pawn friend or foe identification */
-	UPROPERTY(EditAnywhere, Category="Shooter")
+	/** 用于阵营识别的标签（区分友军/敌军） */
+	UPROPERTY(EditAnywhere, Category = "Shooter")
 	FName TeamTag = FName("Enemy");
 
-	/** Enemy currently being targeted */
+	/** 当前锁定的敌人 */
 	TObjectPtr<AActor> TargetEnemy;
 
 public:
-
-	/** Called when an AI perception has been updated. StateTree task delegate hook */
+	/** AI 感知更新时触发的委托（供 StateTree 任务使用） */
 	FShooterPerceptionUpdatedDelegate OnShooterPerceptionUpdated;
 
-	/** Called when an AI perception has been forgotten. StateTree task delegate hook */
+	/** AI 忘记某个感知目标时触发的委托（供 StateTree 任务使用） */
 	FShooterPerceptionForgottenDelegate OnShooterPerceptionForgotten;
 
 public:
-
-	/** Constructor */
+	/** 构造函数：创建并配置 AI 组件 */
 	AShooterAIController();
 
 protected:
-
-	/** Pawn initialization */
-	virtual void OnPossess(APawn* InPawn) override;
+	/** 角色初始化：设置队伍、绑定死亡委托并启动 StateTree */
+	virtual void OnPossess(APawn *InPawn) override;
 
 protected:
-
-	/** Called when the possessed pawn dies */
+	/** 被控制的角色死亡时回调，负责清理控制器 */
 	UFUNCTION()
 	void OnPawnDeath();
 
 public:
+	/** 设置当前锁定的敌人 */
+	void SetCurrentTarget(AActor *Target);
 
-	/** Sets the targeted enemy */
-	void SetCurrentTarget(AActor* Target);
-
-	/** Clears the targeted enemy */
+	/** 清除当前锁定的敌人 */
 	void ClearCurrentTarget();
 
-	/** Returns the targeted enemy */
-	AActor* GetCurrentTarget() const { return TargetEnemy; };
+	/** 获取当前锁定的敌人 */
+	AActor *GetCurrentTarget() const { return TargetEnemy; };
 
 protected:
-
-	/** Called when the AI perception component updates a perception on a given actor */
+	/** 感知组件更新到某个 Actor 时回调（传递给 StateTree） */
 	UFUNCTION()
-	void OnPerceptionUpdated(AActor* Actor, FAIStimulus Stimulus);
+	void OnPerceptionUpdated(AActor *Actor, FAIStimulus Stimulus);
 
-	/** Called when the AI perception component forgets a given actor */
+	/** 感知组件遗忘某个 Actor 时回调（传递给 StateTree） */
 	UFUNCTION()
-	void OnPerceptionForgotten(AActor* Actor);
+	void OnPerceptionForgotten(AActor *Actor);
 };

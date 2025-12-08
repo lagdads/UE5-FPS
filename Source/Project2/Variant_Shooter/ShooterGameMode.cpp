@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
 #include "Variant_Shooter/ShooterGameMode.h"
 #include "ShooterUI.h"
 #include "Kismet/GameplayStatics.h"
@@ -10,24 +9,24 @@ void AShooterGameMode::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// create the UI
+	// 创建记分板 UI 并添加到视口
 	ShooterUI = CreateWidget<UShooterUI>(UGameplayStatics::GetPlayerController(GetWorld(), 0), ShooterUIClass);
 	ShooterUI->AddToViewport(0);
 }
 
 void AShooterGameMode::IncrementTeamScore(uint8 TeamByte)
 {
-	// retrieve the team score if any
+	// 获取目标队伍当前积分（如果有）
 	int32 Score = 0;
-	if (int32* FoundScore = TeamScores.Find(TeamByte))
+	if (int32 *FoundScore = TeamScores.Find(TeamByte))
 	{
 		Score = *FoundScore;
 	}
 
-	// increment the score for the given team
+	// 增加该队伍的积分
 	++Score;
 	TeamScores.Add(TeamByte, Score);
 
-	// update the UI
+	// 通知 UI 更新
 	ShooterUI->BP_UpdateScore(TeamByte, Score);
 }

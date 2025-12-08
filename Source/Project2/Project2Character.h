@@ -16,79 +16,72 @@ struct FInputActionValue;
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
 
 /**
- *  A basic first person character
+ *  基础第一人称角色类
  */
 UCLASS(abstract)
 class AProject2Character : public ACharacter
 {
 	GENERATED_BODY()
 
-	/** Pawn mesh: first person view (arms; seen only by self) */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
-	USkeletalMeshComponent* FirstPersonMesh;
+	/** 第一人称手臂网格，仅自己可见 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	USkeletalMeshComponent *FirstPersonMesh;
 
-	/** First person camera */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
-	UCameraComponent* FirstPersonCameraComponent;
+	/** 第一人称相机组件 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	UCameraComponent *FirstPersonCameraComponent;
 
 protected:
+	/** 跳跃输入动作 */
+	UPROPERTY(EditAnywhere, Category = "Input")
+	UInputAction *JumpAction;
 
-	/** Jump Input Action */
-	UPROPERTY(EditAnywhere, Category ="Input")
-	UInputAction* JumpAction;
+	/** 移动输入动作 */
+	UPROPERTY(EditAnywhere, Category = "Input")
+	UInputAction *MoveAction;
 
-	/** Move Input Action */
-	UPROPERTY(EditAnywhere, Category ="Input")
-	UInputAction* MoveAction;
+	/** 视角输入动作 */
+	UPROPERTY(EditAnywhere, Category = "Input")
+	class UInputAction *LookAction;
 
-	/** Look Input Action */
-	UPROPERTY(EditAnywhere, Category ="Input")
-	class UInputAction* LookAction;
+	/** 鼠标视角输入动作 */
+	UPROPERTY(EditAnywhere, Category = "Input")
+	class UInputAction *MouseLookAction;
 
-	/** Mouse Look Input Action */
-	UPROPERTY(EditAnywhere, Category ="Input")
-	class UInputAction* MouseLookAction;
-	
 public:
 	AProject2Character();
 
 protected:
+	/** 输入动作回调：处理移动轴 */
+	void MoveInput(const FInputActionValue &Value);
 
-	/** Called from Input Actions for movement input */
-	void MoveInput(const FInputActionValue& Value);
+	/** 输入动作回调：处理视角轴 */
+	void LookInput(const FInputActionValue &Value);
 
-	/** Called from Input Actions for looking input */
-	void LookInput(const FInputActionValue& Value);
-
-	/** Handles aim inputs from either controls or UI interfaces */
-	UFUNCTION(BlueprintCallable, Category="Input")
+	/** 接收控制器/界面的视角输入 */
+	UFUNCTION(BlueprintCallable, Category = "Input")
 	virtual void DoAim(float Yaw, float Pitch);
 
-	/** Handles move inputs from either controls or UI interfaces */
-	UFUNCTION(BlueprintCallable, Category="Input")
+	/** 接收控制器/界面的移动输入 */
+	UFUNCTION(BlueprintCallable, Category = "Input")
 	virtual void DoMove(float Right, float Forward);
 
-	/** Handles jump start inputs from either controls or UI interfaces */
-	UFUNCTION(BlueprintCallable, Category="Input")
+	/** 接收跳跃开始输入 */
+	UFUNCTION(BlueprintCallable, Category = "Input")
 	virtual void DoJumpStart();
 
-	/** Handles jump end inputs from either controls or UI interfaces */
-	UFUNCTION(BlueprintCallable, Category="Input")
+	/** 接收跳跃结束输入 */
+	UFUNCTION(BlueprintCallable, Category = "Input")
 	virtual void DoJumpEnd();
 
 protected:
-
-	/** Set up input action bindings */
-	virtual void SetupPlayerInputComponent(UInputComponent* InputComponent) override;
-	
+	/** 绑定增强输入动作 */
+	virtual void SetupPlayerInputComponent(UInputComponent *InputComponent) override;
 
 public:
+	/** 获取第一人称网格 **/
+	USkeletalMeshComponent *GetFirstPersonMesh() const { return FirstPersonMesh; }
 
-	/** Returns the first person mesh **/
-	USkeletalMeshComponent* GetFirstPersonMesh() const { return FirstPersonMesh; }
-
-	/** Returns first person camera component **/
-	UCameraComponent* GetFirstPersonCameraComponent() const { return FirstPersonCameraComponent; }
-
+	/** 获取第一人称相机组件 **/
+	UCameraComponent *GetFirstPersonCameraComponent() const { return FirstPersonCameraComponent; }
 };
-

@@ -4,5 +4,5 @@
 
 AProject2GameMode::AProject2GameMode()
 {
-	// stub
+	// 占位：后续可在此初始化模式逻辑
 }

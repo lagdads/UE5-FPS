@@ -10,48 +10,45 @@ class UInputMappingContext;
 class UUserWidget;
 
 /**
- *  Simple first person Player Controller
- *  Manages the input mapping context.
- *  Overrides the Player Camera Manager class.
+ *  简单的第一人称玩家控制器
+ *  负责输入映射上下文配置，并使用自定义摄像机管理器
  */
-UCLASS(abstract, config="Game")
+UCLASS(abstract, config = "Game")
 class PROJECT2_API AProject2PlayerController : public APlayerController
 {
 	GENERATED_BODY()
-	
-public:
 
-	/** Constructor */
+public:
+	/** 构造函数 */
 	AProject2PlayerController();
 
 protected:
+	/** 默认输入映射上下文集合 */
+	UPROPERTY(EditAnywhere, Category = "Input|Input Mappings")
+	TArray<UInputMappingContext *> DefaultMappingContexts;
 
-	/** Input Mapping Contexts */
-	UPROPERTY(EditAnywhere, Category="Input|Input Mappings")
-	TArray<UInputMappingContext*> DefaultMappingContexts;
+	/** 仅非触控平台使用的输入映射上下文 */
+	UPROPERTY(EditAnywhere, Category = "Input|Input Mappings")
+	TArray<UInputMappingContext *> MobileExcludedMappingContexts;
 
-	/** Input Mapping Contexts */
-	UPROPERTY(EditAnywhere, Category="Input|Input Mappings")
-	TArray<UInputMappingContext*> MobileExcludedMappingContexts;
-
-	/** Mobile controls widget to spawn */
-	UPROPERTY(EditAnywhere, Category="Input|Touch Controls")
+	/** 要生成的移动端触控控件类 */
+	UPROPERTY(EditAnywhere, Category = "Input|Touch Controls")
 	TSubclassOf<UUserWidget> MobileControlsWidgetClass;
 
-	/** Pointer to the mobile controls widget */
+	/** 已生成的触控控件实例指针 */
 	UPROPERTY()
 	TObjectPtr<UUserWidget> MobileControlsWidget;
 
-	/** If true, the player will use UMG touch controls even if not playing on mobile platforms */
+	/** 即使不在移动平台也强制使用触控控件 */
 	UPROPERTY(EditAnywhere, Config, Category = "Input|Touch Controls")
 	bool bForceTouchControls = false;
 
-	/** Gameplay initialization */
+	/** 游戏开始初始化 */
 	virtual void BeginPlay() override;
 
-	/** Input mapping context setup */
+	/** 配置输入映射上下文 */
 	virtual void SetupInputComponent() override;
 
-	/** Returns true if the player should use UMG touch controls */
+	/** 判断是否应启用 UMG 触控控件 */
 	bool ShouldUseTouchControls() const;
 };

@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
 #include "Variant_Shooter/AI/ShooterNPCSpawner.h"
 #include "Engine/World.h"
 #include "Components/SceneComponent.h"
@@ -9,15 +8,15 @@
 #include "TimerManager.h"
 #include "ShooterNPC.h"
 
-// Sets default values
+// 设置默认属性值
 AShooterNPCSpawner::AShooterNPCSpawner()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
-	// create the root
+	// 创建根场景组件
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 
-	// create the reference spawn capsule
+	// 创建用于定位刷新的胶囊体
 	SpawnCapsule = CreateDefaultSubobject<UCapsuleComponent>(TEXT("Spawn Capsule"));
 	SpawnCapsule->SetupAttachment(RootComponent);
 
@@ -32,11 +31,11 @@ AShooterNPCSpawner::AShooterNPCSpawner()
 void AShooterNPCSpawner::BeginPlay()
 {
 	Super::BeginPlay();
-	
-	// ensure we don't spawn NPCs if our initial spawn count is zero
+
+	// 初始计数为 0 时不生成 NPC
 	if (SpawnCount > 0)
 	{
-		// schedule the first NPC spawn
+		// 计划第一次生成
 		GetWorld()->GetTimerManager().SetTimer(SpawnTimer, this, &AShooterNPCSpawner::SpawnNPC, InitialSpawnDelay);
 	}
 }
@@ -45,25 +44,25 @@ void AShooterNPCSpawner::EndPlay(EEndPlayReason::Type EndPlayReason)
 {
 	Super::EndPlay(EndPlayReason);
 
-	// clear the spawn timer
+	// 清理生成计时器
 	GetWorld()->GetTimerManager().ClearTimer(SpawnTimer);
 }
 
 void AShooterNPCSpawner::SpawnNPC()
 {
-	// ensure the NPC class is valid
+	// 检查 NPC 类型是否合法
 	if (IsValid(NPCClass))
 	{
-		// spawn the NPC at the reference capsule's transform
+		// 在参考胶囊位置生成 NPC
 		FActorSpawnParameters SpawnParams;
 		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 
-		AShooterNPC* SpawnedNPC = GetWorld()->SpawnActor<AShooterNPC>(NPCClass, SpawnCapsule->GetComponentTransform(), SpawnParams);
+		AShooterNPC *SpawnedNPC = GetWorld()->SpawnActor<AShooterNPC>(NPCClass, SpawnCapsule->GetComponentTransform(), SpawnParams);
 
-		// was the NPC successfully created?
+		// NPC 是否成功创建
 		if (SpawnedNPC)
 		{
-			// subscribe to the death delegate
+			// 订阅死亡委托
 			SpawnedNPC->OnPawnDeath.AddDynamic(this, &AShooterNPCSpawner::OnNPCDied);
 		}
 	}
@@ -71,15 +70,15 @@ void AShooterNPCSpawner::SpawnNPC()
 
 void AShooterNPCSpawner::OnNPCDied()
 {
-	// decrease the spawn counter
+	// 削减剩余生成数量
 	--SpawnCount;
 
-	// is this the last NPC we should spawn?
+	// 还剩多少 NPC 可以生成？
 	if (SpawnCount <= 0)
 	{
 		return;
 	}
 
-	// schedule the next NPC spawn
+	// 计划下一次生成
 	GetWorld()->GetTimerManager().SetTimer(SpawnTimer, this, &AShooterNPCSpawner::SpawnNPC, RespawnDelay);
 }

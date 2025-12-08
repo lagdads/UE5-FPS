@@ -7,16 +7,15 @@
 #include "Project2CameraManager.generated.h"
 
 /**
- *  Basic First Person camera manager.
- *  Limits min/max look pitch.
+ *  基础第一人称摄像机管理器
+ *  限制俯仰最小/最大角度
  */
 UCLASS()
 class AProject2CameraManager : public APlayerCameraManager
 {
 	GENERATED_BODY()
-	
-public:
 
-	/** Constructor */
+public:
+	/** 构造函数 */
 	AProject2CameraManager();
 };

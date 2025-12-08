@@ -15,166 +15,159 @@ class UAnimMontage;
 class UAnimInstance;
 
 /**
- *  Base class for a simple first person shooter weapon
- *  Provides both first person and third person perspective meshes
- *  Handles ammo and firing logic
- *  Interacts with the weapon owner through the ShooterWeaponHolder interface
+ *  简单第一人称射击武器基类
+ *  同时提供第一人称与第三人称网格
+ *  负责弹药与射击流程
+ *  通过 IShooterWeaponHolder 接口与角色交互
  */
 UCLASS(abstract)
 class PROJECT2_API AShooterWeapon : public AActor
 {
 	GENERATED_BODY()
-	
-	/** First person perspective mesh */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
-	USkeletalMeshComponent* FirstPersonMesh;
 
-	/** Third person perspective mesh */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
-	USkeletalMeshComponent* ThirdPersonMesh;
+	/** 第一人称网格 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	USkeletalMeshComponent *FirstPersonMesh;
+
+	/** 第三人称网格 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	USkeletalMeshComponent *ThirdPersonMesh;
 
 protected:
+	/** 指向武器持有者的接口指针 */
+	IShooterWeaponHolder *WeaponOwner;
 
-	/** Cast pointer to the weapon owner */
-	IShooterWeaponHolder* WeaponOwner;
-
-	/** Type of projectiles this weapon will shoot */
-	UPROPERTY(EditAnywhere, Category="Ammo")
+	/** 武器发射的弹药类型 */
+	UPROPERTY(EditAnywhere, Category = "Ammo")
 	TSubclassOf<AShooterProjectile> ProjectileClass;
 
-	/** Number of bullets in a magazine */
-	UPROPERTY(EditAnywhere, Category="Ammo", meta = (ClampMin = 0, ClampMax = 100))
+	/** 弹匣容量 */
+	UPROPERTY(EditAnywhere, Category = "Ammo", meta = (ClampMin = 0, ClampMax = 100))
 	int32 MagazineSize = 10;
 
-	/** Number of bullets in the current magazine */
+	/** 当前弹匣剩余子弹 */
 	int32 CurrentBullets = 0;
-	
-	/** Animation montage to play when firing this weapon */
-	UPROPERTY(EditAnywhere, Category="Animation")
-	UAnimMontage* FiringMontage;
 
-	/** AnimInstance class to set for the first person character mesh when this weapon is active */
-	UPROPERTY(EditAnywhere, Category="Animation")
+	/** 开火时播放的动画蒙太奇 */
+	UPROPERTY(EditAnywhere, Category = "Animation")
+	UAnimMontage *FiringMontage;
+
+	/** 激活该武器时第一人称网格应使用的 AnimInstance */
+	UPROPERTY(EditAnywhere, Category = "Animation")
 	TSubclassOf<UAnimInstance> FirstPersonAnimInstanceClass;
 
-	/** AnimInstance class to set for the third person character mesh when this weapon is active */
-	UPROPERTY(EditAnywhere, Category="Animation")
+	/** 激活该武器时第三人称网格应使用的 AnimInstance */
+	UPROPERTY(EditAnywhere, Category = "Animation")
 	TSubclassOf<UAnimInstance> ThirdPersonAnimInstanceClass;
 
-	/** Cone half-angle for variance while aiming */
-	UPROPERTY(EditAnywhere, Category="Aim", meta = (ClampMin = 0, ClampMax = 90, Units = "Degrees"))
+	/** 瞄准时的角度散布半角 */
+	UPROPERTY(EditAnywhere, Category = "Aim", meta = (ClampMin = 0, ClampMax = 90, Units = "Degrees"))
 	float AimVariance = 0.0f;
 
-	/** Amount of firing recoil to apply to the owner */
-	UPROPERTY(EditAnywhere, Category="Aim", meta = (ClampMin = 0, ClampMax = 100))
+	/** 射击后施加给持有者的后坐力大小 */
+	UPROPERTY(EditAnywhere, Category = "Aim", meta = (ClampMin = 0, ClampMax = 100))
 	float FiringRecoil = 0.0f;
 
-	/** Name of the first person muzzle socket where projectiles will spawn */
-	UPROPERTY(EditAnywhere, Category="Aim")
+	/** 第一人称枪口插槽名称 */
+	UPROPERTY(EditAnywhere, Category = "Aim")
 	FName MuzzleSocketName;
 
-	/** Distance ahead of the muzzle that bullets will spawn at */
-	UPROPERTY(EditAnywhere, Category="Aim", meta = (ClampMin = 0, ClampMax = 1000, Units = "cm"))
+	/** 子弹生成点相对于枪口的前置偏移 */
+	UPROPERTY(EditAnywhere, Category = "Aim", meta = (ClampMin = 0, ClampMax = 1000, Units = "cm"))
 	float MuzzleOffset = 10.0f;
 
-	/** If true, this weapon will automatically fire at the refire rate */
-	UPROPERTY(EditAnywhere, Category="Refire")
+	/** 全自动武器开火标记 */
+	UPROPERTY(EditAnywhere, Category = "Refire")
 	bool bFullAuto = false;
 
-	/** Time between shots for this weapon. Affects both full auto and semi auto modes */
-	UPROPERTY(EditAnywhere, Category="Refire", meta = (ClampMin = 0, ClampMax = 5, Units = "s"))
+	/** 射击间隔（秒），影响全/半自动 */
+	UPROPERTY(EditAnywhere, Category = "Refire", meta = (ClampMin = 0, ClampMax = 5, Units = "s"))
 	float RefireRate = 0.5f;
 
-	/** Game time of last shot fired, used to enforce refire rate on semi auto */
+	/** 上一次开火的游戏时间，用于半自动节奏控制 */
 	float TimeOfLastShot = 0.0f;
 
-	/** If true, the weapon is currently firing */
+	/** 当前武器是否仍保持射击状态（按住扳机时为 true） */
 	bool bIsFiring = false;
 
-	/** Timer to handle full auto refiring */
+	/** 全自动射击的计时器 */
 	FTimerHandle RefireTimer;
 
-	/** Cast pawn pointer to the owner for AI perception system interactions */
+	/** 指向拥有者的 Pawn（供 AI 感知使用） */
 	TObjectPtr<APawn> PawnOwner;
 
-	/** Loudness of the shot for AI perception system interactions */
-	UPROPERTY(EditAnywhere, Category="Perception", meta = (ClampMin = 0, ClampMax = 100))
+	/** 射击声音大小（AI 感知使用） */
+	UPROPERTY(EditAnywhere, Category = "Perception", meta = (ClampMin = 0, ClampMax = 100))
 	float ShotLoudness = 1.0f;
 
-	/** Max range of shot AI perception noise */
-	UPROPERTY(EditAnywhere, Category="Perception", meta = (ClampMin = 0, ClampMax = 100000, Units = "cm"))
+	/** 射击噪声的最大传播距离 */
+	UPROPERTY(EditAnywhere, Category = "Perception", meta = (ClampMin = 0, ClampMax = 100000, Units = "cm"))
 	float ShotNoiseRange = 3000.0f;
 
-	/** Tag to apply to noise generated by shooting this weapon */
-	UPROPERTY(EditAnywhere, Category="Perception")
+	/** 射击触发的噪声标签 */
+	UPROPERTY(EditAnywhere, Category = "Perception")
 	FName ShotNoiseTag = FName("Shot");
 
-public:	
-
-	/** Constructor */
+public:
+	/** 构造函数 */
 	AShooterWeapon();
 
 protected:
-	
-	/** Gameplay initialization */
+	/** 游戏初始化 */
 	virtual void BeginPlay() override;
 
-	/** Gameplay Cleanup */
+	/** 游戏结束清理 */
 	virtual void EndPlay(EEndPlayReason::Type EndPlayReason) override;
 
 protected:
-
-	/** Called when the weapon's owner is destroyed */
+	/** 拥有者被销毁时的回调 */
 	UFUNCTION()
-	void OnOwnerDestroyed(AActor* DestroyedActor);
+	void OnOwnerDestroyed(AActor *DestroyedActor);
 
 public:
-
-	/** Activates this weapon and gets it ready to fire */
+	/** 激活武器，恢复可见并通知持有者准备接受输入 */
 	void ActivateWeapon();
 
-	/** Deactivates this weapon */
+	/** 停用武器并暂停所有射击 */
 	void DeactivateWeapon();
 
-	/** Start firing this weapon */
+	/** 开始响应扳机事件，保持自动或半自动循环 */
 	void StartFiring();
 
-	/** Stop firing this weapon */
+	/** 停止射击并清除等待重射的计时器 */
 	void StopFiring();
 
 protected:
-
-	/** Fire the weapon */
+	/** 负责一次射击的全部流程：生成投射物、播放反馈、消耗弹药 */
 	virtual void Fire();
 
-	/** Called when the refire rate time has passed while shooting semi auto weapons */
+	/** 半自动模式下计时结束后调用，通知角色可以再次射击 */
 	void FireCooldownExpired();
 
-	/** Fire a projectile towards the target location */
-	virtual void FireProjectile(const FVector& TargetLocation);
+	/** 在目标方向上生成投射物并播放反馈 */
+	virtual void FireProjectile(const FVector &TargetLocation);
 
-	/** Calculates the spawn transform for projectiles shot by this weapon */
-	FTransform CalculateProjectileSpawnTransform(const FVector& TargetLocation) const;
+	/** 计算投射物生成的坐标与朝向（含枪口偏移与散布） */
+	FTransform CalculateProjectileSpawnTransform(const FVector &TargetLocation) const;
 
 public:
+	/** 返回第一人称网格组件，供 Player 角色挂载 */
+	UFUNCTION(BlueprintPure, Category = "Weapon")
+	USkeletalMeshComponent *GetFirstPersonMesh() const { return FirstPersonMesh; };
 
-	/** Returns the first person mesh */
-	UFUNCTION(BlueprintPure, Category="Weapon")
-	USkeletalMeshComponent* GetFirstPersonMesh() const { return FirstPersonMesh; };
+	/** 返回第三人称网格组件，供其他玩家或 AI 展示 */
+	UFUNCTION(BlueprintPure, Category = "Weapon")
+	USkeletalMeshComponent *GetThirdPersonMesh() const { return ThirdPersonMesh; };
 
-	/** Returns the third person mesh */
-	UFUNCTION(BlueprintPure, Category="Weapon")
-	USkeletalMeshComponent* GetThirdPersonMesh() const { return ThirdPersonMesh; };
+	/** 返回第一人称网格应该使用的动画实例类 */
+	const TSubclassOf<UAnimInstance> &GetFirstPersonAnimInstanceClass() const;
 
-	/** Returns the first person anim instance class */
-	const TSubclassOf<UAnimInstance>& GetFirstPersonAnimInstanceClass() const;
+	/** 返回第三人称网格应该使用的动画实例类 */
+	const TSubclassOf<UAnimInstance> &GetThirdPersonAnimInstanceClass() const;
 
-	/** Returns the third person anim instance class */
-	const TSubclassOf<UAnimInstance>& GetThirdPersonAnimInstanceClass() const;
-
-	/** Returns the magazine size */
+	/** 查询弹匣容量 */
 	int32 GetMagazineSize() const { return MagazineSize; };
 
-	/** Returns the current bullet count */
+	/** 查询当前弹匣剩余子弹 */
 	int32 GetBulletCount() const { return CurrentBullets; }
 };

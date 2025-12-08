@@ -9,34 +9,30 @@
 class UShooterUI;
 
 /**
- *  Simple GameMode for a first person shooter game
- *  Manages game UI
- *  Keeps track of team scores
+ *  简单第一人称射击游戏的 GameMode
+ *  管理游戏 UI 和阵营比分
  */
 UCLASS(abstract)
 class PROJECT2_API AShooterGameMode : public AGameModeBase
 {
 	GENERATED_BODY()
-	
-protected:
 
-	/** Type of UI widget to spawn */
-	UPROPERTY(EditAnywhere, Category="Shooter")
+protected:
+	/** 要生成的记分板 UI 类 */
+	UPROPERTY(EditAnywhere, Category = "Shooter")
 	TSubclassOf<UShooterUI> ShooterUIClass;
 
-	/** Pointer to the UI widget */
+	/** 记分板 UI 实例 */
 	TObjectPtr<UShooterUI> ShooterUI;
 
-	/** Map of scores by team ID */
+	/** 按队伍 ID 记录的积分表 */
 	TMap<uint8, int32> TeamScores;
 
 protected:
-
-	/** Gameplay initialization */
+	/** 游戏开始时的初始化 */
 	virtual void BeginPlay() override;
 
 public:
-
-	/** Increases the score for the given team */
+	/** 为指定队伍增加积分并更新 UI */
 	void IncrementTeamScore(uint8 TeamByte);
 };
