@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Project2Character.h"
-#include "Weapons\ShooterWeaponHolder.h"
+#include "Weapons/ShooterWeaponHolder.h"
 #include "ShooterNPC.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPawnDeathDelegate);
