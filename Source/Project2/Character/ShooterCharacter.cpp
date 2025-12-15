@@ -6,6 +6,7 @@
 #include "Components/PawnNoiseEmitterComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Engine/World.h"
 #include "Camera/CameraComponent.h"
@@ -34,13 +35,14 @@ AShooterCharacter::AShooterCharacter()
 	SquidCamera->bUsePawnControlRotation = false; // 摄像机不需要再旋转，跟随弹簧臂即可
 
 	// 3. 初始化潜水模型 (假设是一个简单的球体或鱿鱼模型)
-	SquidMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("SquidMesh"));
+	SquidMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("SquidMesh"));
 	SquidMesh->SetupAttachment(RootComponent);
 	SquidMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision); // 碰撞由胶囊体负责
-	SquidMesh->SetVisibility(false);								// 默认隐藏
+	SquidMesh->SetHiddenInGame(true);								// 默认隐藏
 
 	// 默认关闭 TPS 摄像机
 	SquidCamera->SetActive(false);
+
 
 	// 初始化变量
 	bIsSquidForm = false;
@@ -61,6 +63,14 @@ void AShooterCharacter::BeginPlay()
 	{
 		AddWeaponClass(DefaultWeaponClass);
 	}
+	
+	// 使用默认胶囊体尺寸
+	if (UCapsuleComponent *Capsule = GetCapsuleComponent())
+	{
+		Capsule-> SetCapsuleHalfHeight(NormalCapsuleHeight);
+		Capsule-> SetCapsuleRadius(NormalCapsuleRadius);
+	}
+	
 }
 
 void AShooterCharacter::EndPlay(EEndPlayReason::Type EndPlayReason)
@@ -96,6 +106,17 @@ void AShooterCharacter::SetupPlayerInputComponent(UInputComponent *PlayerInputCo
 		else
 		{
 			UE_LOG(LogTemp, Error, TEXT("[DEBUG] SquidFormAction 为空，未能绑定！请在蓝图中设置 SquidFormAction"));
+		}
+
+		// 绑定单击切换鱿鱼形态动作（单击切换状态）
+		if (SquidFormToggleAction)
+		{
+			EnhancedInputComponent->BindAction(SquidFormToggleAction, ETriggerEvent::Triggered, this, &AShooterCharacter::DoToggleSquidForm);
+			UE_LOG(LogTemp, Warning, TEXT("[DEBUG] SquidFormChangedAction 绑定成功！（单击切换状态）"));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("[DEBUG] SquidFormChangedAction 为空，未能绑定！请在蓝图中设置 SquidFormChangedAction"));
 		}
 	}
 }
@@ -396,6 +417,18 @@ void AShooterCharacter::DoExitSquidForm()
 	ExitSquidForm();
 }
 
+void AShooterCharacter::DoToggleSquidForm()
+{
+	if (IsSquidForm())
+	{
+		DoExitSquidForm();
+	}
+	else
+	{
+		DoEnterSquidForm();
+	}
+}
+
 void AShooterCharacter::EnterSquidForm()
 {
 	// 已经是鱿鱼形态则直接返回
@@ -422,17 +455,31 @@ void AShooterCharacter::EnterSquidForm()
 	// 2. 切换网格可见性：隐藏第一人称手臂，显示鱿鱼网格
 	if (USkeletalMeshComponent *FPMesh = GetFirstPersonMesh())
 	{
-		FPMesh->SetVisibility(false, true);
+		FPMesh->SetHiddenInGame(true, true);
 	}
 	if (SquidMesh)
 	{
-		SquidMesh->SetVisibility(true, true);
+		SquidMesh->SetHiddenInGame(false, true);
+		// Ensure the owner (local player) can see the squid mesh
+		SquidMesh->SetOwnerNoSee(false);
 	}
 
 	// 3. 调整角色碰撞体：变扁以适应潜水姿态
 	if (UCapsuleComponent *Capsule = GetCapsuleComponent())
 	{
+		// 计算高度差值（变身前后胶囊体半高度的差值）
+		float HeightDifference = NormalCapsuleHeight - SquidCapsuleHeight;
+		
+		// 修改胶囊体尺寸
 		Capsule->SetCapsuleHalfHeight(SquidCapsuleHeight);
+		Capsule->SetCapsuleRadius(SquidCapsuleRadius);
+		
+		// 向下移动角色，使脚部保持贴地
+		FVector CurrentLocation = GetActorLocation();
+		CurrentLocation.Z -= HeightDifference;
+		SetActorLocation(CurrentLocation, false);
+		
+		UE_LOG(LogTemp, Warning, TEXT("[DEBUG] 胶囊体缩小，角色向下调整 %.2f 单位以贴近地面"), HeightDifference);
 	}
 
 	// 4. 调整移动速度：鱿鱼形态移动更快
@@ -481,17 +528,31 @@ void AShooterCharacter::ExitSquidForm()
 	// 2. 切换网格可见性：显示第一人称手臂，隐藏鱿鱼网格
 	if (USkeletalMeshComponent *FPMesh = GetFirstPersonMesh())
 	{
-		FPMesh->SetVisibility(true, true);
+		FPMesh->SetHiddenInGame(false, true);
 	}
 	if (SquidMesh)
 	{
-		SquidMesh->SetVisibility(false, true);
+		SquidMesh->SetHiddenInGame(true, true);
+		// Hide the squid mesh from the owning player again
+		SquidMesh->SetOwnerNoSee(true);
 	}
 
 	// 3. 恢复角色碰撞体：恢复正常站立高度
 	if (UCapsuleComponent *Capsule = GetCapsuleComponent())
 	{
+		// 计算高度差值（变身前后胶囊体半高度的差值）
+		float HeightDifference = NormalCapsuleHeight - SquidCapsuleHeight;
+		
+		// 向上移动角色，恢复原始高度
+		FVector CurrentLocation = GetActorLocation();
+		CurrentLocation.Z += HeightDifference;
+		SetActorLocation(CurrentLocation, false);
+		
+		// 修改胶囊体尺寸
 		Capsule->SetCapsuleHalfHeight(NormalCapsuleHeight);
+		Capsule->SetCapsuleRadius(NormalCapsuleRadius);
+		
+		UE_LOG(LogTemp, Warning, TEXT("[DEBUG] 胶囊体恢复，角色向上调整 %.2f 单位"), HeightDifference);
 	}
 
 	// 4. 恢复移动速度：普通形态移动较慢

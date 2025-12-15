@@ -25,10 +25,6 @@ public class Project2 : ModuleRules
 
 		PublicIncludePaths.AddRange(new string[] {
 			"Project2",
-			"Project2/Variant_Shooter",
-			"Project2/Variant_Shooter/AI",
-			"Project2/Variant_Shooter/UI",
-			"Project2/Variant_Shooter/Weapons"
 		});
 
 		// 若使用 Slate UI，请取消注释下方依赖

@@ -24,22 +24,6 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Input|Input Mappings")
 	TArray<UInputMappingContext *> DefaultMappingContexts;
 
-	/** 仅在非触控模式下加载的映射 */
-	UPROPERTY(EditAnywhere, Category = "Input|Input Mappings")
-	TArray<UInputMappingContext *> MobileExcludedMappingContexts;
-
-	/** 要生成的移动触控 UI 类 */
-	UPROPERTY(EditAnywhere, Category = "Input|Touch Controls")
-	TSubclassOf<UUserWidget> MobileControlsWidgetClass;
-
-	/** 移动触控控件实例 */
-	UPROPERTY()
-	TObjectPtr<UUserWidget> MobileControlsWidget;
-
-	/** 是否强制使用触控控件（即使在非移动平台也显示） */
-	UPROPERTY(EditAnywhere, Config, Category = "Input|Touch Controls")
-	bool bForceTouchControls = false;
-
 	/** 被控制角色死亡后重生用的角色类 */
 	UPROPERTY(EditAnywhere, Category = "Shooter|Respawn")
 	TSubclassOf<AShooterCharacter> CharacterClass;
@@ -78,6 +62,5 @@ protected:
 	UFUNCTION()
 	void OnPawnDamaged(float LifePercent);
 
-	/** 判断是否应当启用触控 UI */
-	bool ShouldUseTouchControls() const;
+
 };

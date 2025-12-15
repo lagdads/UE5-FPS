@@ -10,6 +10,8 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Project2.h"
 
+
+// 
 AProject2Character::AProject2Character()
 {
 	// 设置角色碰撞胶囊大小
@@ -65,7 +67,7 @@ void AProject2Character::SetupPlayerInputComponent(UInputComponent *PlayerInputC
 		UE_LOG(LogProject2, Error, TEXT("'%s' Failed to find an Enhanced Input Component! This template is built to use the Enhanced Input system. If you intend to use the legacy system, then you will need to update this C++ file."), *GetNameSafe(this));
 	}
 }
-
+           
 void AProject2Character::MoveInput(const FInputActionValue &Value)
 {
 	// 读取二维移动输入（右、前）

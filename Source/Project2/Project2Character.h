@@ -23,29 +23,29 @@ class AProject2Character : public ACharacter
 {
 	GENERATED_BODY()
 
+protected:
 	/** 第一人称手臂网格，仅自己可见 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components|First Person")
 	USkeletalMeshComponent *FirstPersonMesh;
 
 	/** 第一人称相机组件 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components|First Person")
 	UCameraComponent *FirstPersonCameraComponent;
 
-protected:
 	/** 跳跃输入动作 */
-	UPROPERTY(EditAnywhere, Category = "Input")
+	UPROPERTY(EditAnywhere, Category = "Input|Actions")
 	UInputAction *JumpAction;
 
 	/** 移动输入动作 */
-	UPROPERTY(EditAnywhere, Category = "Input")
+	UPROPERTY(EditAnywhere, Category = "Input|Actions")
 	UInputAction *MoveAction;
 
 	/** 视角输入动作 */
-	UPROPERTY(EditAnywhere, Category = "Input")
+	UPROPERTY(EditAnywhere, Category = "Input|Actions")
 	class UInputAction *LookAction;
 
 	/** 鼠标视角输入动作 */
-	UPROPERTY(EditAnywhere, Category = "Input")
+	UPROPERTY(EditAnywhere, Category = "Input|Actions")
 	class UInputAction *MouseLookAction;
 
 public:
@@ -59,22 +59,21 @@ protected:
 	void LookInput(const FInputActionValue &Value);
 
 	/** 接收控制器/界面的视角输入 */
-	UFUNCTION(BlueprintCallable, Category = "Input")
+	UFUNCTION(BlueprintCallable, Category = "Input|Callbacks")
 	virtual void DoAim(float Yaw, float Pitch);
 
 	/** 接收控制器/界面的移动输入 */
-	UFUNCTION(BlueprintCallable, Category = "Input")
+	UFUNCTION(BlueprintCallable, Category = "Input|Callbacks")
 	virtual void DoMove(float Right, float Forward);
 
 	/** 接收跳跃开始输入 */
-	UFUNCTION(BlueprintCallable, Category = "Input")
+	UFUNCTION(BlueprintCallable, Category = "Input|Callbacks")
 	virtual void DoJumpStart();
 
 	/** 接收跳跃结束输入 */
-	UFUNCTION(BlueprintCallable, Category = "Input")
+	UFUNCTION(BlueprintCallable, Category = "Input|Callbacks")
 	virtual void DoJumpEnd();
 
-protected:
 	/** 绑定增强输入动作 */
 	virtual void SetupPlayerInputComponent(UInputComponent *InputComponent) override;
 

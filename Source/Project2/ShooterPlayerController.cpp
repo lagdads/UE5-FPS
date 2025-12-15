@@ -48,15 +48,6 @@ void AShooterPlayerController::SetupInputComponent()
 			{
 				Subsystem->AddMappingContext(CurrentContext, 0);
 			}
-
-			// 未启用触控时再添加额外映射
-			if (!ShouldUseTouchControls())
-			{
-				for (UInputMappingContext *CurrentContext : MobileExcludedMappingContexts)
-				{
-					Subsystem->AddMappingContext(CurrentContext, 0);
-				}
-			}
 		}
 	}
 }
@@ -128,8 +119,3 @@ void AShooterPlayerController::OnPawnDamaged(float LifePercent)
 	}
 }
 
-bool AShooterPlayerController::ShouldUseTouchControls() const
-{
-	// 判断是否是移动平台或被强制开启触控界面
-	return SVirtualJoystick::ShouldDisplayTouchInterface() || bForceTouchControls;
-}

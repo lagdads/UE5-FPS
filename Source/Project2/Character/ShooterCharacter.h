@@ -27,52 +27,56 @@ class PROJECT2_API AShooterCharacter : public AProject2Character, public IShoote
 {
 	GENERATED_BODY()
 
+protected:
 	/** AI 噪声发射器组件 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components|AI")
 	UPawnNoiseEmitterComponent *PawnNoiseEmitter;
 
-protected:
 	/** 射击输入动作 */
-	UPROPERTY(EditAnywhere, Category = "Input")
+	UPROPERTY(EditAnywhere, Category = "Input|Actions")
 	UInputAction *FireAction;
 
 	/** 切换武器输入动作 */
-	UPROPERTY(EditAnywhere, Category = "Input")
+	UPROPERTY(EditAnywhere, Category = "Input|Actions")
 	UInputAction *SwitchWeaponAction;
 
 	/** 切换鱿鱼形态输入动作 */
-	UPROPERTY(EditAnywhere, Category = "Input")
+	UPROPERTY(EditAnywhere, Category = "Input|Actions")
 	UInputAction *SquidFormAction;
 
+	/** 切换鱿鱼形态输入动作 */
+	UPROPERTY(EditAnywhere, Category = "Input|Actions")
+	UInputAction *SquidFormToggleAction;
+
 	/** 第一人称网格的武器挂点名称 */
-	UPROPERTY(EditAnywhere, Category = "Weapons")
+	UPROPERTY(EditAnywhere, Category = "Weapons|Configuration")
 	FName FirstPersonWeaponSocket = FName("HandGrip_R");
 
 	/** 第三人称网格的武器挂点名称 */
-	UPROPERTY(EditAnywhere, Category = "Weapons")
+	UPROPERTY(EditAnywhere, Category = "Weapons|Configuration")
 	FName ThirdPersonWeaponSocket = FName("HandGrip_R");
 
 	/** 瞄准射线的最大距离 */
-	UPROPERTY(EditAnywhere, Category = "Aim", meta = (ClampMin = 0, ClampMax = 100000, Units = "cm"))
+	UPROPERTY(EditAnywhere, Category = "Aim|Configuration", meta = (ClampMin = 0, ClampMax = 100000, Units = "cm"))
 	float MaxAimDistance = 10000.0f;
 
 	/** 最大生命值 */
-	UPROPERTY(EditAnywhere, Category = "Health")
+	UPROPERTY(EditAnywhere, Category = "Health|Configuration")
 	float MaxHP = 500.0f;
 
 	/** 当前剩余生命值 */
 	float CurrentHP = 0.0f;
 
 	/** 所属队伍 ID（用于识别/计分）*/
-	UPROPERTY(EditAnywhere, Category = "Team")
+	UPROPERTY(EditAnywhere, Category = "Team|Configuration")
 	uint8 TeamByte = 0;
 
 	/** 死亡时添加的标签 */
-	UPROPERTY(EditAnywhere, Category = "Team")
+	UPROPERTY(EditAnywhere, Category = "Team|Configuration")
 	FName DeathTag = FName("Dead");
 
-	// ** 默认武器类别 */
-	UPROPERTY(EditAnywhere, Category = "Weapons")
+	/** 默认武器类别 */
+	UPROPERTY(EditAnywhere, Category = "Weapons|Configuration")
 	TSubclassOf<AShooterWeapon> DefaultWeaponClass;
 
 	/** 拥有的武器列表 */
@@ -81,36 +85,42 @@ protected:
 	/** 当前装备的武器 */
 	TObjectPtr<AShooterWeapon> CurrentWeapon;
 
-	UPROPERTY(EditAnywhere, Category = "Destruction", meta = (ClampMin = 0, ClampMax = 10, Units = "s"))
+	UPROPERTY(EditAnywhere, Category = "Health|Configuration", meta = (ClampMin = 0, ClampMax = 10, Units = "s"))
 	float RespawnTime = 5.0f;
 
 	FTimerHandle RespawnTimer;
 
 	// 第三人称潜水视角,鱿鱼形态摄像机组件
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components|Squid Form")
 	class USpringArmComponent *SquidSpringArm;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components|Squid Form")
 	class UCameraComponent *SquidCamera;
 
 	// 潜水形态的网格体
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Mesh)
-	class UStaticMeshComponent *SquidMesh;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components|Squid Form")
+	class USkeletalMeshComponent *SquidMesh;
 
 	// --- 状态变量 ---
 	bool bIsSquidForm;
 
 	// --- 潜水参数配置 ---
-	UPROPERTY(EditAnywhere, Category = "Squid Mechanics")
+	UPROPERTY(EditAnywhere, Category = "Squid Mechanics|Settings")
 	float SquidMoveSpeed = 900.f;
 
-	UPROPERTY(EditAnywhere, Category = "Squid Mechanics")
+	UPROPERTY(EditAnywhere, Category = "Squid Mechanics|Settings")
 	float NormalMoveSpeed = 600.f;
 
-	UPROPERTY(EditAnywhere, Category = "Squid Mechanics")
-	float SquidCapsuleHeight = 34.f; // 潜水时变扁
-
-	UPROPERTY(EditAnywhere, Category = "Squid Mechanics")
+	UPROPERTY(EditAnywhere, Category = "Squid Mechanics|Settings")
+	float SquidCapsuleHeight = 12.f; // 潜水时变扁
+	
+	UPROPERTY(EditAnywhere, Category = "Squid Mechanics|Settings")
+	float NormalCapsuleRadius = 34.f; 
+	
+	UPROPERTY(EditAnywhere, Category = "Squid Mechanics|Settings")
+	float SquidCapsuleRadius = 12.f;
+	
+	UPROPERTY(EditAnywhere, Category = "Squid Mechanics|Settings")
 	float NormalCapsuleHeight = 88.f; // 正常站立高度
 
 public:
@@ -152,35 +162,39 @@ public:
 	virtual void DoJumpEnd() override;
 
 	/** 开始射击输入 */
-	UFUNCTION(BlueprintCallable, Category = "Input")
+	UFUNCTION(BlueprintCallable, Category = "Input|Callbacks")
 	void DoStartFiring();
 
 	/** 停止射击输入 */
-	UFUNCTION(BlueprintCallable, Category = "Input")
+	UFUNCTION(BlueprintCallable, Category = "Input|Callbacks")
 	void DoStopFiring();
 
 	/** 切换武器输入 */
-	UFUNCTION(BlueprintCallable, Category = "Input")
+	UFUNCTION(BlueprintCallable, Category = "Input|Callbacks")
 	void DoSwitchWeapon();
 
 	/** 进入鱿鱼形态输入（按下按键） */
-	UFUNCTION(BlueprintCallable, Category = "Input")
+	UFUNCTION(BlueprintCallable, Category = "Input|Callbacks")
 	void DoEnterSquidForm();
 
 	/** 退出鱿鱼形态输入（松开按键） */
-	UFUNCTION(BlueprintCallable, Category = "Input")
+	UFUNCTION(BlueprintCallable, Category = "Input|Callbacks")
 	void DoExitSquidForm();
 
+	/** 切换鱿鱼形态输入 */
+	UFUNCTION(BlueprintCallable, Category = "Input|Callbacks")
+	void DoToggleSquidForm();
+
 	/** 进入鱿鱼形态 */
-	UFUNCTION(BlueprintCallable, Category = "Squid Mechanics")
+	UFUNCTION(BlueprintCallable, Category = "Squid Mechanics|Callbacks")
 	void EnterSquidForm();
 
 	/** 退出鱿鱼形态 */
-	UFUNCTION(BlueprintCallable, Category = "Squid Mechanics")
+	UFUNCTION(BlueprintCallable, Category = "Squid Mechanics|Callbacks")
 	void ExitSquidForm();
 
 	/** 获取当前是否为鱿鱼形态 */
-	UFUNCTION(BlueprintPure, Category = "Squid Mechanics")
+	UFUNCTION(BlueprintPure, Category = "Squid Mechanics|State")
 	bool IsSquidForm() const { return bIsSquidForm; }
 
 public:
@@ -223,7 +237,7 @@ protected:
 	void Die();
 
 	/** 允许蓝图响应角色死亡 */
-	UFUNCTION(BlueprintImplementableEvent, Category = "Shooter", meta = (DisplayName = "On Death"))
+	UFUNCTION(BlueprintImplementableEvent, Category = "Health|Callbacks", meta = (DisplayName = "On Death"))
 	void BP_OnDeath();
 
 	/** 由重生计时器触发，销毁本体并迫使玩家重生 */
