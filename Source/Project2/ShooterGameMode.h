@@ -8,6 +8,14 @@
 
 class UShooterUI;
 
+UENUM(BlueprintType)
+enum class E_Team : uint8
+{
+	None UMETA(DisplayName = "No Team"),
+	Team1 UMETA(DisplayName = "Team 1"),
+	Team2 UMETA(DisplayName = "Team 2")
+};
+
 /**
  *  简单第一人称射击游戏的 GameMode
  *  管理游戏 UI 和阵营比分
@@ -34,5 +42,5 @@ protected:
 
 public:
 	/** 为指定队伍增加积分并更新 UI */
-	void IncrementTeamScore(uint8 TeamByte);
+	void IncrementTeamScore(E_Team Team);
 };

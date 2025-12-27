@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ShooterGameMode.h"
 #include "GameFramework/Actor.h"
 #include "ShooterProjectile.generated.h"
 
@@ -28,7 +29,6 @@ class PROJECT2_API AShooterProjectile : public AActor
 	UProjectileMovementComponent *ProjectileMovement;
 
 protected:
-
 	/**重力系数*/
 	UPROPERTY(EditAnywhere, Category = "Projectile|Movement")
 	float GravityScale = 0.8f;
@@ -41,41 +41,17 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Projectile|Movement", meta = (ClampMin = 0))
 	float HorizontalDeceleration = 3.0f;
 
-	/** 命中后产生的 AI 噪声音量 */
-	UPROPERTY(EditAnywhere, Category = "Projectile|Noise", meta = (ClampMin = 0, ClampMax = 100))
-	float NoiseLoudness = 3.0f;
-
-	/** 命中后噪声影响范围 */
-	UPROPERTY(EditAnywhere, Category = "Projectile|Noise", meta = (ClampMin = 0, ClampMax = 100000, Units = "cm"))
-	float NoiseRange = 3000.0f;
-
-	/** 噪声标签 */
-	UPROPERTY(EditAnywhere, Category = "Noise")
-	FName NoiseTag = FName("Projectile");
-
-	/** 命中时施加的物理冲击 */
-	UPROPERTY(EditAnywhere, Category = "Projectile|Hit", meta = (ClampMin = 0, ClampMax = 50000))
-	float PhysicsForce = 100.0f;
-
 	/** 命中造成的伤害 */
 	UPROPERTY(EditAnywhere, Category = "Projectile|Hit", meta = (ClampMin = 0, ClampMax = 100))
 	float HitDamage = 25.0f;
 
-	/** 伤害类型，可表示火焰、爆炸等 */
+	/** 伤害类型 */
 	UPROPERTY(EditAnywhere, Category = "Projectile|Hit")
 	TSubclassOf<UDamageType> HitDamageType;
 
 	/** 是否允许伤害自身 */
 	UPROPERTY(EditAnywhere, Category = "Projectile|Hit")
 	bool bDamageOwner = false;
-
-	/** 是否爆炸并对周围角色造成径向伤害 */
-	UPROPERTY(EditAnywhere, Category = "Projectile|Explosion")
-	bool bExplodeOnHit = false;
-
-	/** 爆炸影响的最大距离 */
-	UPROPERTY(EditAnywhere, Category = "Projectile|Explosion", meta = (ClampMin = 0, ClampMax = 5000, Units = "cm"))
-	float ExplosionRadius = 500.0f;
 
 	/** 是否已命中某个表面 */
 	bool bHit = false;
@@ -88,11 +64,31 @@ protected:
 	FTimerHandle DestructionTimer;
 
 public:
+	/** 子弹所属的队伍 */
+	UPROPERTY(BlueprintReadWrite, Category = "Projectile")
+	E_Team OwningTeam;
+
+	// ========== 碰撞后行为设置 ==========
+
+	/** 击中可移动物体时使用的碰撞配置名称 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Projectile|Hit Effects")
+	FName PhysicsCollisionProfile = FName(TEXT("PhysicsActor"));
+
+protected:
+	/** 是否已附着到目标 */
+	bool bAttachedToTarget = false;
+
+public:
 	/** 构造函数 */
 	AShooterProjectile();
 
 	/** 每帧更新：用于处理水平减速 */
 	virtual void Tick(float DeltaSeconds) override;
+
+	// 可选的蓝图扩展事件（C++ 已实现核心涂色逻辑）
+	// 蓝图可以实现此事件添加额外的视觉效果或自定义行为
+	UFUNCTION(BlueprintImplementableEvent, Category = "Painting", meta = (DisplayName = "Trigger Paint On Actor"))
+	void TriggerPaintOnActor(AActor *HitActor, FVector2D HitUV, E_Team CurrentTeamID);
 
 protected:
 	/** 游戏初始化 */
@@ -105,9 +101,6 @@ protected:
 	virtual void NotifyHit(class UPrimitiveComponent *MyComp, AActor *Other, UPrimitiveComponent *OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult &Hit) override;
 
 protected:
-	/** 检查爆炸范围内的角色并造成伤害 */
-	void ExplosionCheck(const FVector &ExplosionCenter);
-
 	/** 处理单个命中 */
 	void ProcessHit(AActor *HitActor, UPrimitiveComponent *HitComp, const FVector &HitLocation, const FVector &HitDirection);
 
@@ -117,4 +110,16 @@ protected:
 
 	/** 销毁计时器回调 */
 	void OnDeferredDestruction();
+
+	/** 处理涂色逻辑 */
+	void ProcessPainting(const FHitResult &ImpactHit);
+
+	/** 根据被击中组件的 Mobility 处理碰撞后的行为 */
+	void ProcessHitBehavior(UPrimitiveComponent *HitComp, const FHitResult &Hit);
+
+	/** 将投射物附着到静态目标 */
+	void AttachToStaticTarget(UPrimitiveComponent *TargetComp, const FHitResult &Hit);
+
+	/** 启用物理模拟（击中可移动物体时） */
+	void EnablePhysicsOnHit(const FVector &HitVelocity);
 };

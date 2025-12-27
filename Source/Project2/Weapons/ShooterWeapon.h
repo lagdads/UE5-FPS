@@ -93,21 +93,6 @@ protected:
 	/** 全自动射击的计时器 */
 	FTimerHandle RefireTimer;
 
-	/** 指向拥有者的 Pawn（供 AI 感知使用） */
-	TObjectPtr<APawn> PawnOwner;
-
-	/** 射击声音大小（AI 感知使用） */
-	UPROPERTY(EditAnywhere, Category = "Perception", meta = (ClampMin = 0, ClampMax = 100))
-	float ShotLoudness = 1.0f;
-
-	/** 射击噪声的最大传播距离 */
-	UPROPERTY(EditAnywhere, Category = "Perception", meta = (ClampMin = 0, ClampMax = 100000, Units = "cm"))
-	float ShotNoiseRange = 3000.0f;
-
-	/** 射击触发的噪声标签 */
-	UPROPERTY(EditAnywhere, Category = "Perception")
-	FName ShotNoiseTag = FName("Shot");
-
 public:
 	/** 构造函数 */
 	AShooterWeapon();

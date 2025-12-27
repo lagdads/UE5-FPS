@@ -14,8 +14,10 @@ void AShooterGameMode::BeginPlay()
 	ShooterUI->AddToViewport(0);
 }
 
-void AShooterGameMode::IncrementTeamScore(uint8 TeamByte)
+void AShooterGameMode::IncrementTeamScore(E_Team Team)
 {
+	uint8 TeamByte = static_cast<uint8>(Team);
+
 	// 获取目标队伍当前积分（如果有）
 	int32 Score = 0;
 	if (int32 *FoundScore = TeamScores.Find(TeamByte))

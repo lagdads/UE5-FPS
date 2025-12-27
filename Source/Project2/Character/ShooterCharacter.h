@@ -5,11 +5,11 @@
 #include "CoreMinimal.h"
 #include "Project2Character.h"
 #include "Weapons/ShooterWeaponHolder.h"
+#include "ShooterGameMode.h"
 #include "ShooterCharacter.generated.h"
 
 class AShooterWeapon;
 class UInputAction;
-class UPawnNoiseEmitterComponent;
 class USpringArmComponent;
 class UCameraComponent;
 class UStaticMeshComponent;
@@ -28,10 +28,6 @@ class PROJECT2_API AShooterCharacter : public AProject2Character, public IShoote
 	GENERATED_BODY()
 
 protected:
-	/** AI 噪声发射器组件 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components|AI")
-	UPawnNoiseEmitterComponent *PawnNoiseEmitter;
-
 	/** 射击输入动作 */
 	UPROPERTY(EditAnywhere, Category = "Input|Actions")
 	UInputAction *FireAction;
@@ -68,8 +64,8 @@ protected:
 	float CurrentHP = 0.0f;
 
 	/** 所属队伍 ID（用于识别/计分）*/
-	UPROPERTY(EditAnywhere, Category = "Team|Configuration")
-	uint8 TeamByte = 0;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Team|Configuration")
+	E_Team Team = E_Team::Team1;
 
 	/** 死亡时添加的标签 */
 	UPROPERTY(EditAnywhere, Category = "Team|Configuration")
@@ -113,13 +109,13 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = "Squid Mechanics|Settings")
 	float SquidCapsuleHeight = 12.f; // 潜水时变扁
-	
+
 	UPROPERTY(EditAnywhere, Category = "Squid Mechanics|Settings")
-	float NormalCapsuleRadius = 34.f; 
-	
+	float NormalCapsuleRadius = 34.f;
+
 	UPROPERTY(EditAnywhere, Category = "Squid Mechanics|Settings")
 	float SquidCapsuleRadius = 12.f;
-	
+
 	UPROPERTY(EditAnywhere, Category = "Squid Mechanics|Settings")
 	float NormalCapsuleHeight = 88.f; // 正常站立高度
 
@@ -196,6 +192,14 @@ public:
 	/** 获取当前是否为鱿鱼形态 */
 	UFUNCTION(BlueprintPure, Category = "Squid Mechanics|State")
 	bool IsSquidForm() const { return bIsSquidForm; }
+
+	/** 获取角色所属队伍 */
+	UFUNCTION(BlueprintPure, Category = "Team")
+	E_Team GetTeam() const { return Team; }
+
+	/** 设置角色所属队伍 */
+	UFUNCTION(BlueprintCallable, Category = "Team")
+	void SetTeam(E_Team NewTeam) { Team = NewTeam; }
 
 public:
 	//~Begin IShooterWeaponHolder interface

@@ -8,9 +8,10 @@
 #include "GameFramework/DamageType.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/Controller.h"
-#include "Engine/OverlapResult.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
+#include "Ink/InkSystemComponent.h"
+#include "Ink/PaintManager.h"
 
 AShooterProjectile::AShooterProjectile()
 {
@@ -26,7 +27,7 @@ AShooterProjectile::AShooterProjectile()
 
 	// 创建投射物移动组件（非场景组件，无需 Attach）
 	ProjectileMovement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("Projectile Movement"));
-	
+
 	// 注意：不在构造函数中设置速度，应该在 PostInitializeComponents 中设置
 	ProjectileMovement->bShouldBounce = true;
 
@@ -42,6 +43,9 @@ void AShooterProjectile::BeginPlay()
 	ProjectileMovement->InitialSpeed = Speed;
 	ProjectileMovement->MaxSpeed = Speed;
 	ProjectileMovement->ProjectileGravityScale = GravityScale;
+
+	// 设置投射物沿着 Actor 的 Forward 方向发射
+	ProjectileMovement->Velocity = GetActorForwardVector() * Speed;
 
 	// 忽略发射该投射物的 Pawn，避免自伤
 	CollisionComponent->IgnoreActorWhenMoving(GetInstigator(), true);
@@ -91,26 +95,25 @@ void AShooterProjectile::NotifyHit(class UPrimitiveComponent *MyComp, AActor *Ot
 		return;
 	}
 
+	// 忽略与发射者的碰撞（防止子弹刚发射就击中玩家）
+	if (Other == GetInstigator() || Other == GetOwner())
+	{
+		return;
+	}
+
 	bHit = true;
 
 	// 禁用碰撞，防止二次触发
 	CollisionComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
-	// 产生 AI 噪声供感知系统使用
-	MakeNoise(NoiseLoudness, GetInstigator(), GetActorLocation(), NoiseRange, NoiseTag);
+	// 处理直接命中对象
+	ProcessHit(Other, OtherComp, Hit.ImpactPoint, -Hit.ImpactNormal);
 
-	if (bExplodeOnHit)
-	{
+	// 处理碰撞后的行为（附着/物理）
+	ProcessHitBehavior(OtherComp, Hit);
 
-		// 执行爆炸伤害检查
-		ExplosionCheck(GetActorLocation());
-	}
-	else
-	{
-
-		// 非爆炸的单体投射物，处理直接命中对象
-		ProcessHit(Other, OtherComp, Hit.ImpactPoint, -Hit.ImpactNormal);
-	}
+	// 处理涂色逻辑
+	ProcessPainting(Hit);
 
 	// 交给蓝图触发额外特效
 	BP_OnProjectileHit(Hit);
@@ -122,50 +125,8 @@ void AShooterProjectile::NotifyHit(class UPrimitiveComponent *MyComp, AActor *Ot
 	}
 	else
 	{
-
 		// 立即销毁
 		Destroy();
-	}
-}
-
-void AShooterProjectile::ExplosionCheck(const FVector &ExplosionCenter)
-{
-	// 做一个球形重叠查询，寻找爆炸范围内的对象
-	TArray<FOverlapResult> Overlaps;
-
-	FCollisionShape OverlapShape;
-	OverlapShape.SetSphere(ExplosionRadius);
-
-	FCollisionObjectQueryParams ObjectParams;
-	ObjectParams.AddObjectTypesToQuery(ECC_Pawn);
-	ObjectParams.AddObjectTypesToQuery(ECC_WorldDynamic);
-	ObjectParams.AddObjectTypesToQuery(ECC_PhysicsBody);
-
-	FCollisionQueryParams QueryParams;
-	QueryParams.AddIgnoredActor(this);
-	if (!bDamageOwner)
-	{
-		QueryParams.AddIgnoredActor(GetInstigator());
-	}
-
-	GetWorld()->OverlapMultiByObjectType(Overlaps, ExplosionCenter, FQuat::Identity, ObjectParams, OverlapShape, QueryParams);
-
-	TArray<AActor *> DamagedActors;
-
-	// 处理重叠结果
-	for (const FOverlapResult &CurrentOverlap : Overlaps)
-	{
-		// 重叠查询可能返回同一个演员的多个组件，避免重复伤害
-		if (DamagedActors.Find(CurrentOverlap.GetActor()) == INDEX_NONE)
-		{
-			DamagedActors.Add(CurrentOverlap.GetActor());
-
-			// 将爆炸力施加到该演员身上
-			const FVector &ExplosionDir = CurrentOverlap.GetActor()->GetActorLocation() - GetActorLocation();
-
-			// 造成伤害并推动演员
-			ProcessHit(CurrentOverlap.GetActor(), CurrentOverlap.GetComponent(), GetActorLocation(), ExplosionDir.GetSafeNormal());
-		}
 	}
 }
 
@@ -181,17 +142,167 @@ void AShooterProjectile::ProcessHit(AActor *HitActor, UPrimitiveComponent *HitCo
 			UGameplayStatics::ApplyDamage(HitCharacter, HitDamage, GetInstigator()->GetController(), this, HitDamageType);
 		}
 	}
-
-	// 是否碰到可模拟物理的组件？
-	if (HitComp->IsSimulatingPhysics())
-	{
-		// 添加冲击力制造反馈
-		HitComp->AddImpulseAtLocation(HitDirection * PhysicsForce, HitLocation);
-	}
 }
 
 void AShooterProjectile::OnDeferredDestruction()
 {
 	// 延迟销毁投射物
 	Destroy();
+}
+
+/** 处理涂色逻辑 */
+void AShooterProjectile::ProcessPainting(const FHitResult &ImpactHit)
+{
+	// 1. 二次射线检测 (Double Check)
+	// 高速物体的 HitResult 有时可能会丢失 UV 信息，或者 Hit 的位置不够深。
+	// 我们沿着子弹反方向做一次短距离射线，确保 "TraceComplex" 开启。
+
+	FVector Start = ImpactHit.Location + (ImpactHit.ImpactNormal * 10.0f); // 从击中点外面一点
+	FVector End = ImpactHit.Location - (ImpactHit.ImpactNormal * 20.0f);   // 射入物体内部
+
+	FCollisionQueryParams TraceParams(FName(TEXT("PaintTrace")), true, this);
+	TraceParams.bReturnFaceIndex = true; // 必须开启！为了获取 FaceIndex
+	TraceParams.bTraceComplex = true;	 // 必须开启！为了通过 Mesh 计算 UV
+
+	FHitResult UVHitResult;
+	bool bTraceHit = GetWorld()->LineTraceSingleByChannel(
+		UVHitResult,
+		Start,
+		End,
+		ECC_Visibility, // 确保你的地板阻挡这个 Channel
+		TraceParams);
+
+	UE_LOG(LogTemp, Log, TEXT("ProcessPainting: bTraceHit=%d, HitActor=%s"),
+		   bTraceHit, *GetNameSafe(UVHitResult.GetActor()));
+
+	if (bTraceHit && UVHitResult.Component.IsValid())
+	{
+		FVector2D UV;
+		// 2. 获取 UV (对应蓝图的 FindCollisionUV)
+		// 关键点：Channel 设为 1 (Lightmap UV)
+		bool bFoundUV = UGameplayStatics::FindCollisionUV(UVHitResult, 1, UV);
+
+		UE_LOG(LogTemp, Log, TEXT("ProcessPainting: bFoundUV=%d, UV=(%f, %f)"),
+			   bFoundUV, UV.X, UV.Y);
+
+		if (bFoundUV)
+		{
+			// 查找目标 Actor 上的 InkSystemComponent
+			AActor *HitActor = UVHitResult.GetActor();
+			UInkSystemComponent *InkComp = HitActor->FindComponentByClass<UInkSystemComponent>();
+
+			UE_LOG(LogTemp, Log, TEXT("ProcessPainting: InkComp=%s"),
+				   InkComp ? TEXT("Found") : TEXT("NULL"));
+
+			if (InkComp)
+			{
+				// 获取场景中的 PaintManager
+				APaintManager *PaintMgr = Cast<APaintManager>(
+					UGameplayStatics::GetActorOfClass(GetWorld(), APaintManager::StaticClass()));
+
+				UE_LOG(LogTemp, Log, TEXT("ProcessPainting: PaintMgr=%s, OwningTeam=%d"),
+					   PaintMgr ? TEXT("Found") : TEXT("NULL"), (int32)OwningTeam);
+
+				if (PaintMgr)
+				{
+					// 使用 C++ 涂色系统
+					PaintMgr->PaintTargetByTeam(InkComp, UV, OwningTeam);
+				}
+				else
+				{
+					UE_LOG(LogTemp, Error, TEXT("ProcessPainting: PaintManager not found in level!"));
+				}
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("ProcessPainting: Hit actor '%s' has no InkSystemComponent!"),
+					   *GetNameSafe(HitActor));
+			}
+
+			// 保留蓝图事件以供自定义扩展（可选）
+			TriggerPaintOnActor(HitActor, UV, OwningTeam);
+		}
+	}
+}
+
+/** 根据被击中组件的 Mobility 处理碰撞后的行为 */
+void AShooterProjectile::ProcessHitBehavior(UPrimitiveComponent *HitComp, const FHitResult &Hit)
+{
+	if (!HitComp)
+	{
+		return;
+	}
+
+	// 根据组件的 Mobility 属性分支处理
+	switch (HitComp->Mobility)
+	{
+	case EComponentMobility::Static:
+		// 静态物体：附着到目标
+		AttachToStaticTarget(HitComp, Hit);
+		break;
+
+	case EComponentMobility::Movable:
+	case EComponentMobility::Stationary:
+		// 可移动物体：启用物理模拟
+		EnablePhysicsOnHit(ProjectileMovement ? ProjectileMovement->Velocity : FVector::ZeroVector);
+		break;
+
+	default:
+		break;
+	}
+}
+
+/** 将投射物附着到静态目标 */
+void AShooterProjectile::AttachToStaticTarget(UPrimitiveComponent *TargetComp, const FHitResult &Hit)
+{
+	if (!TargetComp || bAttachedToTarget)
+	{
+		return;
+	}
+
+	// 停用投射物移动组件
+	if (ProjectileMovement)
+	{
+		ProjectileMovement->StopMovementImmediately();
+		ProjectileMovement->SetComponentTickEnabled(false);
+	}
+
+	// 附着到目标，保持世界位置
+	AttachToComponent(
+		TargetComp,
+		FAttachmentTransformRules::KeepWorldTransform,
+		NAME_None);
+
+	bAttachedToTarget = true;
+
+	UE_LOG(LogTemp, Log, TEXT("Projectile attached to static target: %s"), *GetNameSafe(TargetComp->GetOwner()));
+}
+
+/** 启用物理模拟（击中可移动物体时） */
+void AShooterProjectile::EnablePhysicsOnHit(const FVector &HitVelocity)
+{
+	// 停用投射物移动组件
+	if (ProjectileMovement)
+	{
+		ProjectileMovement->StopMovementImmediately();
+		ProjectileMovement->SetComponentTickEnabled(false);
+	}
+
+	// 切换碰撞配置为物理 Actor
+	if (CollisionComponent)
+	{
+		CollisionComponent->SetCollisionProfileName(PhysicsCollisionProfile);
+		CollisionComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+
+		// 启用物理模拟
+		CollisionComponent->SetSimulatePhysics(true);
+
+		// 应用当前速度（可选，保持动量）
+		if (!HitVelocity.IsNearlyZero())
+		{
+			CollisionComponent->SetPhysicsLinearVelocity(HitVelocity * 0.5f); // 减半速度避免过于剧烈
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("Projectile physics enabled on movable hit"));
 }

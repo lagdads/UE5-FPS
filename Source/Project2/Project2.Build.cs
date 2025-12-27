@@ -14,12 +14,11 @@ public class Project2 : ModuleRules
 			"Engine",
 			"InputCore",
 			"EnhancedInput",
-			"AIModule",
-			"StateTreeModule",
-			"GameplayStateTreeModule",
 			"UMG",
-			"Slate"
-		});
+			"Slate",
+			"PhysicsCore",
+            "RenderCore",
+        });
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });
 

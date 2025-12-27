@@ -3,7 +3,6 @@
 #include "ShooterCharacter.h"
 #include "Weapons/ShooterWeapon.h"
 #include "EnhancedInputComponent.h"
-#include "Components/PawnNoiseEmitterComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -15,9 +14,6 @@
 
 AShooterCharacter::AShooterCharacter()
 {
-	// 创建 AI 噪声发射器组件
-	PawnNoiseEmitter = CreateDefaultSubobject<UPawnNoiseEmitterComponent>(TEXT("Pawn Noise Emitter"));
-
 	// 配置移动旋转速度
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 600.0f, 0.0f);
 
@@ -43,7 +39,6 @@ AShooterCharacter::AShooterCharacter()
 	// 默认关闭 TPS 摄像机
 	SquidCamera->SetActive(false);
 
-
 	// 初始化变量
 	bIsSquidForm = false;
 }
@@ -63,14 +58,13 @@ void AShooterCharacter::BeginPlay()
 	{
 		AddWeaponClass(DefaultWeaponClass);
 	}
-	
+
 	// 使用默认胶囊体尺寸
 	if (UCapsuleComponent *Capsule = GetCapsuleComponent())
 	{
-		Capsule-> SetCapsuleHalfHeight(NormalCapsuleHeight);
-		Capsule-> SetCapsuleRadius(NormalCapsuleRadius);
+		Capsule->SetCapsuleHalfHeight(NormalCapsuleHeight);
+		Capsule->SetCapsuleRadius(NormalCapsuleRadius);
 	}
-	
 }
 
 void AShooterCharacter::EndPlay(EEndPlayReason::Type EndPlayReason)
@@ -354,7 +348,7 @@ void AShooterCharacter::Die()
 	// 通知游戏模式增加进攻方得分
 	if (AShooterGameMode *GM = Cast<AShooterGameMode>(GetWorld()->GetAuthGameMode()))
 	{
-		GM->IncrementTeamScore(TeamByte);
+		GM->IncrementTeamScore(Team);
 	}
 
 	// 添加死亡标签
@@ -469,16 +463,16 @@ void AShooterCharacter::EnterSquidForm()
 	{
 		// 计算高度差值（变身前后胶囊体半高度的差值）
 		float HeightDifference = NormalCapsuleHeight - SquidCapsuleHeight;
-		
+
 		// 修改胶囊体尺寸
 		Capsule->SetCapsuleHalfHeight(SquidCapsuleHeight);
 		Capsule->SetCapsuleRadius(SquidCapsuleRadius);
-		
+
 		// 向下移动角色，使脚部保持贴地
 		FVector CurrentLocation = GetActorLocation();
 		CurrentLocation.Z -= HeightDifference;
 		SetActorLocation(CurrentLocation, false);
-		
+
 		UE_LOG(LogTemp, Warning, TEXT("[DEBUG] 胶囊体缩小，角色向下调整 %.2f 单位以贴近地面"), HeightDifference);
 	}
 
@@ -542,16 +536,16 @@ void AShooterCharacter::ExitSquidForm()
 	{
 		// 计算高度差值（变身前后胶囊体半高度的差值）
 		float HeightDifference = NormalCapsuleHeight - SquidCapsuleHeight;
-		
+
 		// 向上移动角色，恢复原始高度
 		FVector CurrentLocation = GetActorLocation();
 		CurrentLocation.Z += HeightDifference;
 		SetActorLocation(CurrentLocation, false);
-		
+
 		// 修改胶囊体尺寸
 		Capsule->SetCapsuleHalfHeight(NormalCapsuleHeight);
 		Capsule->SetCapsuleRadius(NormalCapsuleRadius);
-		
+
 		UE_LOG(LogTemp, Warning, TEXT("[DEBUG] 胶囊体恢复，角色向上调整 %.2f 单位"), HeightDifference);
 	}
 

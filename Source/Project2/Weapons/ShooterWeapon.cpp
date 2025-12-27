@@ -9,7 +9,7 @@
 #include "TimerManager.h"
 #include "Animation/AnimInstance.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "GameFramework/Pawn.h"
+#include "Character/ShooterCharacter.h"
 
 AShooterWeapon::AShooterWeapon()
 {
@@ -42,9 +42,8 @@ void AShooterWeapon::BeginPlay()
 	// 订阅拥有者销毁事件
 	GetOwner()->OnDestroyed.AddDynamic(this, &AShooterWeapon::OnOwnerDestroyed);
 
-	// 缓存武器拥有者接口与 Pawn
+	// 缓存武器拥有者接口
 	WeaponOwner = Cast<IShooterWeaponHolder>(GetOwner());
-	PawnOwner = Cast<APawn>(GetOwner());
 
 	// 填充初始弹匣
 	CurrentBullets = MagazineSize;
@@ -137,7 +136,7 @@ void AShooterWeapon::Fire()
 		// 自动重新装填弹匣
 		CurrentBullets = MagazineSize;
 		WeaponOwner->UpdateWeaponHUD(CurrentBullets, MagazineSize);
-		
+
 		// 本次不射击，等待下次触发
 		// 可在此处播放换弹音效/动画
 		return;
@@ -148,9 +147,6 @@ void AShooterWeapon::Fire()
 
 	// 记录本次开火时间
 	TimeOfLastShot = GetWorld()->GetTimeSeconds();
-
-	// 产生噪声供 AI 感知
-	MakeNoise(ShotLoudness, PawnOwner, PawnOwner->GetActorLocation(), ShotNoiseRange, ShotNoiseTag);
 
 	// 全自动模式会继续调度射击
 	if (bFullAuto)
@@ -187,9 +183,18 @@ void AShooterWeapon::FireProjectile(const FVector &TargetLocation)
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	SpawnParams.TransformScaleMethod = ESpawnActorScaleMethod::OverrideRootScale;
 	SpawnParams.Owner = GetOwner();
-	SpawnParams.Instigator = PawnOwner;
+	SpawnParams.Instigator = Cast<APawn>(GetOwner());
 
 	AShooterProjectile *Projectile = GetWorld()->SpawnActor<AShooterProjectile>(ProjectileClass, ProjectileTransform, SpawnParams);
+
+	// 设置投射物的队伍属性
+	if (Projectile)
+	{
+		if (AShooterCharacter *ShooterChar = Cast<AShooterCharacter>(GetOwner()))
+		{
+			Projectile->OwningTeam = ShooterChar->GetTeam();
+		}
+	}
 
 	// 播放射击动画
 	WeaponOwner->PlayFiringMontage(FiringMontage);
